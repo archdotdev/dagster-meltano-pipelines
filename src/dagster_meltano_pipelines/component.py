@@ -159,7 +159,7 @@ class MeltanoPipelineArgs(BaseModel):
 
 @dataclass
 class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
-    """A component that represents a Meltano project."""
+    """A component that represents a Meltano pipeline."""
 
     project: ResolvedMeltanoProject
     pipelines: t.Dict[str, MeltanoPipelineArgs]
