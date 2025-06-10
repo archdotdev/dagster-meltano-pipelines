@@ -94,18 +94,30 @@ def _first_or(list: t.List[t.Any], default: t.Any) -> t.Any:
     return list[0] if len(list) > 0 else default
 
 
-def _plugin_to_dagster_resource(plugin: t.Dict[str, t.Any]) -> dg.ResourceDefinition:
-    def _is_required(setting: t.Dict[str, t.Any]) -> bool:
-        validation = setting["name"] in _first_or(plugin.get("settings_group_validation", []), [])
-        default = setting.get("value")
-        return default is None and validation
+def _plugin_setting_to_field(
+    *,
+    plugin_config: t.Dict[str, t.Any],
+    setting: t.Dict[str, t.Any],
+    group_validation: t.List[t.List[str]],
+) -> dg.Field:
+    configured_value = plugin_config.get(setting["name"])
+    default = setting.get("value")
+    in_group = setting["name"] in _first_or(group_validation, [])
 
+    return dg.Field(
+        _setting_to_dagster_type(setting),
+        default_value=plugin_config.get(setting["name"], setting.get("value", FIELD_NO_DEFAULT_PROVIDED)),
+        description=setting.get("description"),
+        is_required=default is None and configured_value is None and in_group,
+    )
+
+
+def _plugin_to_dagster_resource(plugin: t.Dict[str, t.Any]) -> dg.ResourceDefinition:
     config_schema = {
-        setting["name"]: dg.Field(
-            _setting_to_dagster_type(setting),
-            default_value=setting.get("value", FIELD_NO_DEFAULT_PROVIDED),
-            description=setting.get("description"),
-            is_required=_is_required(setting),
+        setting["name"]: _plugin_setting_to_field(
+            plugin_config=plugin.get("config", {}),
+            setting=setting,
+            group_validation=plugin.get("settings_group_validation", []),
         )
         for setting in plugin.get("settings", [])
     }
