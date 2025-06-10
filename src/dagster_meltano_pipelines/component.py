@@ -26,7 +26,7 @@ class MeltanoProjectArgs(dg.Resolvable):
     project_dir: str
 
 
-def resolve_meltano_project(context: dg.ResolutionContext, model) -> MeltanoProject:
+def resolve_meltano_project(context: dg.ResolutionContext, model: BaseModel) -> MeltanoProject:
     if isinstance(model, str):
         return MeltanoProject(
             context.resolve_source_relative_path(
@@ -57,7 +57,7 @@ class MeltanoObjectType(config_type.ConfigType):
             kind=config_type.ConfigTypeKind.ANY,
         )
 
-    def post_process(self, value):
+    def post_process(self, value: t.Any) -> t.Any:
         return json.loads(value)
 
 
@@ -126,8 +126,10 @@ def _plugin_to_dagster_resource(plugin: t.Dict[str, t.Any]) -> dg.ResourceDefini
         config_schema=config_schema,
         description=plugin.get("description"),
     )
-    def meltano_plugin(context: dg.InitResourceContext) -> None:
-        context.log.info("context.resource_config: %s", context.resource_config)
+    def meltano_plugin(context: dg.InitResourceContext) -> t.Dict[str, t.Any]:
+        if context.log:
+            context.log.info("context.resource_config: %s", context.resource_config)
+
         return plugin
 
     return meltano_plugin
@@ -138,7 +140,7 @@ def _pipeline_to_dagster_asset(
     extractor_id: str,
     loader_id: str,
     description: str | None = None,
-):
+) -> dg.AssetsDefinition:
     extractor_resource_key = f"{pipeline_id}_{extractor_id}"
     loader_resource_key = f"{pipeline_id}_{loader_id}"
 
@@ -177,8 +179,8 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
     pipelines: t.Dict[str, MeltanoPipelineArgs]
 
     @cached_property
-    def cli_resource(self):
-        return MeltanoCliResource(self.project)
+    def cli_resource(self) -> MeltanoCliResource:
+        return MeltanoCliResource(project=self.project)
 
     @t.override
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:

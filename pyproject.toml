@@ -24,6 +24,7 @@ testing = [
 ]
 typing = [
     "mypy>=1.16.0",
+    "types-pyyaml>=6.0.12.20250516",
 ]
 
 [build-system]
@@ -61,4 +62,4 @@ commands = [ [ "pytest", { replace = "posargs", default = [ "tests" ], extend = 
 
 [tool.tox.env.type]
 dependency_groups = [ "testing", "typing" ]
-commands = [ [ "mypy", "--strict", { replace = "posargs", default = [ "src/dagster_meltano", "tests" ], extend = true } ] ]
+commands = [ [ "mypy", "--strict", { replace = "posargs", default = [ "src/dagster_meltano_pipelines", "tests" ], extend = true } ] ]

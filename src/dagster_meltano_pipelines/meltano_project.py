@@ -13,7 +13,7 @@ class MeltanoProject(IHaveNew):
     """A component that represents a Meltano project."""
 
     project_dir: Path
-    plugins: t.Dict[tuple[str, str], dict]
+    plugins: t.Dict[tuple[str, str], t.Dict[str, t.Any]]
 
     def __new__(
         cls,
