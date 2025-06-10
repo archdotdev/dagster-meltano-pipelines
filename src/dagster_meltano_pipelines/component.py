@@ -1,9 +1,10 @@
 import json
 import sys
 import typing as t
+import subprocess
 from dataclasses import dataclass
 from functools import cached_property
-
+from pathlib import Path
 
 import dagster as dg
 from dagster.components.resolved.model import Resolver
@@ -137,6 +138,10 @@ def _plugin_to_dagster_resource(plugin: t.Dict[str, t.Any]) -> dg.ResourceDefini
 
 def _pipeline_to_dagster_asset(
     pipeline_id: str,
+    *,
+    project_dir: Path,
+    extractor_name: str,
+    loader_name: str,
     extractor_id: str,
     loader_id: str,
     description: str | None = None,
@@ -159,6 +164,19 @@ def _pipeline_to_dagster_asset(
         context.log.info("Running pipeline: %s", pipeline_id)
         context.log.info("Extractor: %s", extractor_resource)
         context.log.info("Loader: %s", loader_resource)
+        process = subprocess.Popen(
+            [
+                "meltano",
+                "run",
+                extractor_name,
+                loader_name,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=project_dir,
+        )
+        if exit_code := process.wait():
+            raise RuntimeError(f"Meltano job failed with exit code {exit_code}")
 
     return meltano_job
 
@@ -194,8 +212,11 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
             assets.append(
                 _pipeline_to_dagster_asset(
                     pipeline_id,
-                    extractor_id,
-                    loader_id,
+                    project_dir=self.project.project_dir,
+                    extractor_name=pipeline_args.extractor,
+                    loader_name=pipeline_args.loader,
+                    extractor_id=extractor_id,
+                    loader_id=loader_id,
                     description=pipeline_args.description,
                 )
             )

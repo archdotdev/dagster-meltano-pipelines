@@ -13,7 +13,7 @@ class MeltanoProject(IHaveNew):
     """A component that represents a Meltano project."""
 
     project_dir: Path
-    plugins: t.Dict[tuple[str, str], t.Dict[str, t.Any]]
+    plugins: dict[tuple[str, str], dict[str, t.Any]]
 
     def __new__(
         cls,
@@ -27,7 +27,7 @@ class MeltanoProject(IHaveNew):
         with open(project_dir.joinpath("meltano.yml")) as file:
             meltano_yml = yaml.safe_load(file)
 
-        plugin_defs: t.Dict[tuple[str, str], t.Dict[str, t.Any]] = {}
+        plugin_defs: dict[tuple[str, str], dict[str, t.Any]] = {}
         for plugin_type, plugins in meltano_yml.get("plugins", {}).items():
             for plugin in plugins:
                 if "inherit_from" in plugin:
