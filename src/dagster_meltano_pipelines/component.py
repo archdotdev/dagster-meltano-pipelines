@@ -83,7 +83,7 @@ def _setting_to_dagster_type(setting: t.Dict[str, t.Any]) -> config_schema.UserC
             ],
         )
     elif kind == "array":
-        return dg.Array(inner_type=dg.Any())
+        return dg.Array(inner_type=dg.Any)
     elif kind == "object":
         return MeltanoObjectType()
 
