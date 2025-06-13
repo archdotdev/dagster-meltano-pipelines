@@ -8,6 +8,7 @@ from functools import cached_property
 from pathlib import Path
 
 import dagster as dg
+import orjson
 from dagster.components.resolved.model import Resolver
 from pydantic import BaseModel
 
@@ -178,6 +179,18 @@ def _plugin_config_to_env(
     return env
 
 
+def _process_meltano_logs(context: dg.AssetExecutionContext, lines: t.Iterable[bytes]) -> None:
+    for line in lines:
+        try:
+            log_data = orjson.loads(line)
+        except orjson.JSONDecodeError:
+            continue
+
+        level = log_data.pop("level")
+        event = log_data.pop("event")
+        context.log.log(level, event, extra={"meltano": log_data})
+
+
 def _pipeline_to_dagster_asset(
     pipeline_id: str,
     *,
@@ -229,18 +242,12 @@ def _pipeline_to_dagster_asset(
         )
         if exit_code := process.wait():
             if process.stdout is not None:
-                context.log.error(process.stdout.read().decode("utf-8"))
+                _process_meltano_logs(context, process.stdout)
 
             raise RuntimeError(f"Meltano job failed with exit code {exit_code}")
 
         if process.stdout is not None:
-            context.log.info(process.stdout.read().decode("utf-8"))
-
-        # if not process.stderr:
-        #     return
-
-        # for line in process.stderr:
-        #     context.log.error(line.decode("utf-8"))
+            _process_meltano_logs(context, process.stdout)
 
     return meltano_job
 
