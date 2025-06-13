@@ -145,6 +145,7 @@ def _pipeline_to_dagster_asset(
     extractor_id: str,
     loader_id: str,
     description: str | None = None,
+    tags: t.Dict[str, str] | None = None,
 ) -> dg.AssetsDefinition:
     extractor_resource_key = f"{pipeline_id}_{extractor_id}"
     loader_resource_key = f"{pipeline_id}_{loader_id}"
@@ -156,6 +157,7 @@ def _pipeline_to_dagster_asset(
             loader_resource_key,
         },
         description=description or f"Move data from {extractor_id} to {loader_id}",
+        tags=tags,
     )
     def meltano_job(context: dg.AssetExecutionContext) -> None:
         extractor_resource = getattr(context.resources, extractor_resource_key)
@@ -199,6 +201,7 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
 
     project: ResolvedMeltanoProject
     pipelines: t.Dict[str, MeltanoPipelineArgs]
+    tags: t.Dict[str, str] | None = None
 
     @cached_property
     def cli_resource(self) -> MeltanoCliResource:
@@ -222,6 +225,7 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
                     extractor_id=extractor_id,
                     loader_id=loader_id,
                     description=pipeline_args.description,
+                    tags=self.tags,
                 )
             )
 
