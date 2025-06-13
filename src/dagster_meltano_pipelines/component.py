@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 import typing as t
@@ -12,9 +11,12 @@ import orjson
 from dagster.components.resolved.model import Resolver
 from pydantic import BaseModel
 
-from dagster._config import config_type, config_schema, FIELD_NO_DEFAULT_PROVIDED
 from dagster_meltano_pipelines.meltano_project import MeltanoProject
 from dagster_meltano_pipelines.resource import MeltanoCliResource
+from dagster_meltano_pipelines.core import (
+    plugin_config_to_env,
+    plugin_to_dagster_resource,
+)
 
 if sys.version_info >= (3, 10):
     from typing import TypeAlias
@@ -53,132 +55,6 @@ ResolvedMeltanoProject: TypeAlias = t.Annotated[
 ]
 
 
-class MeltanoObjectType(config_type.ConfigType):
-    def __init__(self) -> None:
-        super().__init__(
-            key="MeltanoObject",
-            kind=config_type.ConfigTypeKind.ANY,
-        )
-
-    def post_process(self, value: t.Any) -> t.Any:
-        return json.loads(value)
-
-
-def _setting_to_dagster_type(setting: t.Dict[str, t.Any]) -> config_schema.UserConfigSchema:
-    kind = setting.get("kind", "string")
-    if kind == "string":
-        return dg.String
-    elif kind == "integer":
-        return dg.Int
-    elif kind == "float":
-        return dg.Float
-    elif kind == "boolean":
-        return dg.Bool
-    elif kind == "options":
-        return dg.Enum(
-            name=setting.get("label", setting["name"]),
-            enum_values=[
-                dg.EnumValue(
-                    option["value"],
-                    description=option.get("label"),
-                )
-                for option in setting["options"]
-            ],
-        )
-    elif kind == "array":
-        return dg.Array(inner_type=dg.Any)
-    elif kind == "object":
-        return MeltanoObjectType()
-
-    return dg.String
-
-
-def _first_or(list: t.List[t.Any], default: t.Any) -> t.Any:
-    return list[0] if len(list) > 0 else default
-
-
-def _plugin_setting_to_field(
-    *,
-    plugin_config: t.Dict[str, t.Any],
-    setting: t.Dict[str, t.Any],
-    group_validation: t.List[t.List[str]],
-    env_var: str | None = None,
-) -> dg.Field:
-    if env_var:
-        default_value = dg.EnvVar(env_var).get_value()
-        if setting.get("kind") in ["object", "array"]:
-            default_value = json.loads(default_value)
-    else:
-        default_value = FIELD_NO_DEFAULT_PROVIDED
-
-    return dg.Field(
-        _setting_to_dagster_type(setting),
-        default_value=default_value,
-        description=setting.get("description"),
-        is_required=False,
-    )
-
-
-def _plugin_to_dagster_resource(
-    plugin: t.Dict[str, t.Any],
-    *,
-    env_vars: t.Dict[str, str] | None = None,
-) -> dg.ResourceDefinition:
-    env_vars = env_vars or {}
-    config_schema = {
-        setting["name"]: _plugin_setting_to_field(
-            plugin_config=plugin.get("config", {}),
-            setting=setting,
-            group_validation=plugin.get("settings_group_validation", []),
-            env_var=env_vars.get(setting["name"]),
-        )
-        for setting in plugin.get("settings", [])
-    }
-
-    @dg.resource(
-        config_schema=config_schema,
-        description=plugin.get("description"),
-    )
-    def meltano_plugin(context: dg.InitResourceContext) -> t.Tuple[t.Dict[str, t.Any], t.Dict[str, t.Any]]:
-        if context.log:
-            context.log.info("context.resource_config: %s", context.resource_config)
-
-        return plugin, context.resource_config
-
-    return meltano_plugin
-
-
-class MeltanoPlugin(BaseModel):
-    """Base class for Meltano plugins."""
-
-    name: str
-    env_vars: t.Dict[str, str] | None = None
-
-    @property
-    def id(self) -> str:
-        return self.name.replace("-", "_")
-
-
-def _plugin_config_to_env(
-    plugin_definition: t.Dict[str, t.Any],
-    config: t.Dict[str, t.Any],
-) -> t.Dict[str, t.Any]:
-    env = {}
-    prefix = plugin_definition["name"].upper().replace("-", "_")
-    settings_dict = {setting["name"]: setting for setting in plugin_definition.get("settings", [])}
-
-    for key, value in config.items():
-        suffix = key.upper()
-        if key in settings_dict:
-            kind = settings_dict[key].get("kind", "string")
-            if kind in ["object", "array"]:
-                value = json.dumps(value)
-
-        env[f"{prefix}_{suffix}"] = str(value)
-
-    return env
-
-
 def _process_meltano_logs(context: dg.AssetExecutionContext, lines: t.Iterable[bytes]) -> None:
     for line in lines:
         try:
@@ -191,7 +67,19 @@ def _process_meltano_logs(context: dg.AssetExecutionContext, lines: t.Iterable[b
         context.log.log(level, event, extra={"meltano": log_data})
 
 
-def _pipeline_to_dagster_asset(
+# Re-add MeltanoPlugin class for type annotations
+class MeltanoPlugin(BaseModel):
+    """Base class for Meltano plugins."""
+
+    name: str
+    env_vars: t.Dict[str, str] | None = None
+
+    @property
+    def id(self) -> str:
+        return self.name.replace("-", "_")
+
+
+def pipeline_to_dagster_asset(
     pipeline_id: str,
     *,
     project_dir: Path,
@@ -215,15 +103,15 @@ def _pipeline_to_dagster_asset(
     def meltano_job(context: dg.AssetExecutionContext) -> None:
         extractor_resource, extractor_config = getattr(context.resources, extractor_resource_key)
         loader_resource, loader_config = getattr(context.resources, loader_resource_key)
-        env = {}
+        env: t.Dict[str, str] = {}
 
         context.log.info("Running pipeline: %s", pipeline_id)
         context.log.info("Extractor: %s", extractor_resource)
         context.log.info("Loader: %s", loader_resource)
 
         env |= os.environ
-        env |= _plugin_config_to_env(extractor_resource, extractor_config)
-        env |= _plugin_config_to_env(loader_resource, loader_config)
+        env |= plugin_config_to_env(extractor_resource, extractor_config)
+        env |= plugin_config_to_env(loader_resource, loader_config)
 
         context.log.info("Env: %s", env)
 
@@ -280,7 +168,7 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
 
         for pipeline_id, pipeline_args in self.pipelines.items():
             assets.append(
-                _pipeline_to_dagster_asset(
+                pipeline_to_dagster_asset(
                     pipeline_id,
                     project_dir=self.project.project_dir,
                     extractor=pipeline_args.extractor,
@@ -290,12 +178,12 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
                 )
             )
 
-            resources[f"{pipeline_id}_{pipeline_args.extractor.id}"] = _plugin_to_dagster_resource(
+            resources[f"{pipeline_id}_{pipeline_args.extractor.id}"] = plugin_to_dagster_resource(
                 self.project.plugins["extractors", pipeline_args.extractor.name],
                 env_vars=pipeline_args.extractor.env_vars,
             )
 
-            resources[f"{pipeline_id}_{pipeline_args.loader.id}"] = _plugin_to_dagster_resource(
+            resources[f"{pipeline_id}_{pipeline_args.loader.id}"] = plugin_to_dagster_resource(
                 self.project.plugins["loaders", pipeline_args.loader.name],
                 env_vars=pipeline_args.loader.env_vars,
             )
