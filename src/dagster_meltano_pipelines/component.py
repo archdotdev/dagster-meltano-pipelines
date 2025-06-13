@@ -179,10 +179,13 @@ def _pipeline_to_dagster_asset(
             cwd=project_dir,
         )
         if exit_code := process.wait():
-            context.log.error(process.stdout.read().decode("utf-8"))
+            if process.stdout is not None:
+                context.log.error(process.stdout.read().decode("utf-8"))
+
             raise RuntimeError(f"Meltano job failed with exit code {exit_code}")
 
-        context.log.info(process.stdout.read().decode("utf-8"))
+        if process.stdout is not None:
+            context.log.info(process.stdout.read().decode("utf-8"))
 
     return meltano_job
 
