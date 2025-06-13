@@ -11,6 +11,7 @@ dependencies = [
     "dagster>=1.10.19",
     "meltano",
     "orjson>=3.10.18",
+    "typing-extensions>=4.5; python_version < '3.12'",
 ]
 
 [project.entry-points]

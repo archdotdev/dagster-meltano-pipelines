@@ -23,6 +23,11 @@ if sys.version_info >= (3, 10):
 else:
     from typing_extensions import TypeAlias
 
+if sys.version_info >= (3, 12):
+    from typing import override
+else:
+    from typing_extensions import override
+
 
 @dataclass
 class MeltanoProjectArgs(dg.Resolvable):
@@ -72,7 +77,7 @@ class MeltanoPlugin(BaseModel):
     """Base class for Meltano plugins."""
 
     name: str
-    env_vars: t.Dict[str, str] | None = None
+    env_vars: t.Optional[t.Dict[str, str]] = None
 
     @property
     def id(self) -> str:
@@ -85,8 +90,8 @@ def pipeline_to_dagster_asset(
     project_dir: Path,
     extractor: MeltanoPlugin,
     loader: MeltanoPlugin,
-    description: str | None = None,
-    tags: t.Dict[str, str] | None = None,
+    description: t.Optional[str] = None,
+    tags: t.Optional[t.Dict[str, str]] = None,
 ) -> dg.AssetsDefinition:
     extractor_resource_key = f"{pipeline_id}_{extractor.id}"
     loader_resource_key = f"{pipeline_id}_{loader.id}"
@@ -145,9 +150,9 @@ class MeltanoPipelineArgs(BaseModel):
 
     extractor: MeltanoPlugin
     loader: MeltanoPlugin
-    description: str | None = None
-    tags: t.Dict[str, str] | None = None
-    env_vars: t.Dict[str, str] | None = None
+    description: t.Optional[str] = None
+    tags: t.Optional[t.Dict[str, str]] = None
+    env_vars: t.Optional[t.Dict[str, str]] = None
 
 
 @dataclass
@@ -161,7 +166,7 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
     def cli_resource(self) -> MeltanoCliResource:
         return MeltanoCliResource(project=self.project)
 
-    @t.override
+    @override
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         assets = []
         resources = {}
