@@ -258,6 +258,7 @@ class MeltanoPipelineArgs(BaseModel):
     extractor: MeltanoPlugin
     loader: MeltanoPlugin
     description: str | None = None
+    tags: t.Dict[str, str] | None = None
     env_vars: t.Dict[str, str] | None = None
 
 
@@ -267,7 +268,6 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
 
     project: ResolvedMeltanoProject
     pipelines: t.Dict[str, MeltanoPipelineArgs]
-    tags: t.Dict[str, str] | None = None
 
     @cached_property
     def cli_resource(self) -> MeltanoCliResource:
@@ -286,7 +286,7 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
                     extractor=pipeline_args.extractor,
                     loader=pipeline_args.loader,
                     description=pipeline_args.description,
-                    tags=self.tags,
+                    tags=pipeline_args.tags,
                 )
             )
 
