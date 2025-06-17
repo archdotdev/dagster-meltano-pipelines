@@ -123,7 +123,6 @@ def pipeline_to_dagster_asset(
         process = subprocess.Popen(
             [
                 "meltano",
-                "--log-format=json",
                 "run",
                 extractor.name,
                 loader.name,
