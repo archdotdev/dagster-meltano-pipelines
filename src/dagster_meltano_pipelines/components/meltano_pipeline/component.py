@@ -133,15 +133,28 @@ def pipeline_to_dagster_asset(
             stderr=subprocess.STDOUT,
             cwd=project_dir,
             env=env,
+            text=False,
+            bufsize=1,
         )
-        if exit_code := process.wait():
-            if process.stdout is not None:
-                _process_meltano_logs(context, process.stdout)
 
-            raise RuntimeError(f"Meltano job failed with exit code {exit_code}")
-
+        # Stream logs in real time
         if process.stdout is not None:
-            _process_meltano_logs(context, process.stdout)
+            for line in iter(process.stdout.readline, b""):
+                try:
+                    log_data = orjson.loads(line)
+                except orjson.JSONDecodeError:
+                    # If it's not valid JSON, log as raw text
+                    context.log.info(line.decode("utf-8").strip())
+                else:
+                    level = log_data.pop("level")
+                    event = log_data.pop("event")
+                    context.log.log(level, event, extra={"meltano": log_data})
+
+            # Wait for process to complete
+            exit_code = process.wait()
+
+            if exit_code != 0:
+                raise RuntimeError(f"Meltano job failed with exit code {exit_code}")
 
     return meltano_job
 
