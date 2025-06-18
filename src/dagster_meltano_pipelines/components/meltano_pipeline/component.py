@@ -18,7 +18,7 @@ from dagster_meltano_pipelines.core import (
     plugin_config_to_env,
     plugin_to_dagster_resource,
 )
-from dagster_meltano_pipelines.scaffolder import MeltanoProjectScaffolder
+from .scaffolder import MeltanoProjectScaffolder
 
 if sys.version_info >= (3, 10):
     from typing import TypeAlias
