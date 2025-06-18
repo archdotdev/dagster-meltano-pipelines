@@ -17,6 +17,7 @@ from dagster_meltano_pipelines.core import (
     plugin_config_to_env,
     plugin_to_dagster_resource,
 )
+from .scaffolder import MeltanoProjectScaffolder
 
 if sys.version_info >= (3, 10):
     from typing import TypeAlias
@@ -155,9 +156,13 @@ class MeltanoPipelineArgs(BaseModel):
     env_vars: t.Optional[t.Dict[str, str]] = None
 
 
+@dg.scaffold_with(MeltanoProjectScaffolder)
 @dataclass
 class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
-    """A component that represents a Meltano pipeline."""
+    """A component that represents a Meltano pipeline.
+
+    Use `dg scaffold dagster_meltano_pipelines.MeltanoPipelineComponent {component_path}` to get started.
+    """
 
     project: ResolvedMeltanoProject
     pipelines: t.Dict[str, MeltanoPipelineArgs]
