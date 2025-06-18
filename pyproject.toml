@@ -65,3 +65,10 @@ commands = [ [ "pytest", { replace = "posargs", default = [ "tests" ], extend = 
 [tool.tox.env.type]
 dependency_groups = [ "testing", "typing" ]
 commands = [ [ "mypy", "--strict", { replace = "posargs", default = [ "src/dagster_meltano_pipelines", "tests" ], extend = true } ] ]
+
+[tool.tox.env.lint]
+deps = [ "ruff" ]
+commands = [
+    [ "ruff", "check", "src/" ],
+    [ "ruff", "format", "--check", "src/" ]
+]
