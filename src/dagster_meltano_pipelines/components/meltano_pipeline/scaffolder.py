@@ -1,12 +1,11 @@
 import os
 import yaml
-from dagster.components.component.component_scaffolder import Scaffolder  # type: ignore[attr-defined]
-from dagster.components.component_scaffolding import scaffold_component
-from dagster.components.scaffold.scaffold import ScaffoldRequest
+
+import dagster as dg
 
 
-class MeltanoProjectScaffolder(Scaffolder):
-    def scaffold(self, request: ScaffoldRequest) -> None:
+class MeltanoProjectScaffolder(dg.Scaffolder):
+    def scaffold(self, request: dg.ScaffoldRequest) -> None:
         # Support custom project path similar to dbt scaffolder
         project_path = "project"  # default
         if hasattr(request.params, "project_path") and request.params.project_path:
@@ -14,7 +13,7 @@ class MeltanoProjectScaffolder(Scaffolder):
             rel_path = os.path.relpath(request.params.project_path, start=project_root)
             project_path = f"{{{{ project_root }}}}/{rel_path}"
 
-        scaffold_component(
+        dg.scaffold_component(
             request,
             {
                 "project": project_path,

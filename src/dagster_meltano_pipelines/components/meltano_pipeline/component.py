@@ -9,7 +9,6 @@ from pathlib import Path
 import dagster as dg
 import orjson
 from dagster.components.resolved.model import Resolver
-from dagster.components.scaffold.scaffold import scaffold_with
 from pydantic import BaseModel
 
 from dagster_meltano_pipelines.meltano_project import MeltanoProject
@@ -157,7 +156,7 @@ class MeltanoPipelineArgs(BaseModel):
     env_vars: t.Optional[t.Dict[str, str]] = None
 
 
-@scaffold_with(MeltanoProjectScaffolder)
+@dg.scaffold_with(MeltanoProjectScaffolder)
 @dataclass
 class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
     """A component that represents a Meltano pipeline.
