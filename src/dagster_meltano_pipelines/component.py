@@ -124,6 +124,7 @@ def pipeline_to_dagster_asset(
             [
                 "meltano",
                 "run",
+                f"--run-id={context.run_id}",
                 extractor.name,
                 loader.name,
             ],
