@@ -4,10 +4,10 @@ Dagster components for building reusable Meltano pipelines
 
 ## Installation
 
-Add the package to your Dagster project using uv:
+Add the package to your Dagster project using uv from the Git repository:
 
 ```bash
-uv add dagster-meltano-pipelines
+uv add git+https://github.com/archdotdev/dagster-meltano-pipelines.git
 ```
 
 ## Usage
