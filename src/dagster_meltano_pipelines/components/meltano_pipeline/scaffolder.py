@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Optional
 
 import dagster as dg
+from meltano.cli import cli as meltano_cli  # type: ignore[attr-defined]
 from pydantic import BaseModel
 
 
@@ -39,20 +40,14 @@ class MeltanoProjectScaffolder(dg.Scaffolder[MeltanoScaffolderParams]):
             meltano_dir = request.params.project_path
         else:
             meltano_dir = request.target_path / "project"
-        meltano_dir.mkdir(exist_ok=True, parents=True)
 
-        # Create meltano.yml
-        meltano_yml_path = meltano_dir / "meltano.yml"
-        meltano_config = {
-            "version": 1,
-            "default_environment": "dev",
-            "environments": [{"name": "dev"}, {"name": "staging"}, {"name": "prod"}],
-            "plugins": {"extractors": [], "loaders": []},
-            "venv": {"backend": "uv"},
-        }
-
-        with open(meltano_yml_path, "w") as f:
-            yaml.dump(meltano_config, f, default_flow_style=False)
+        # Invoke the meltano CLI to scaffold the project
+        meltano_cli(
+            [
+                "init",
+                meltano_dir.as_posix(),
+            ],
+        )
 
         # Create logging.yaml
         logging_yaml_path = meltano_dir / "logging.yaml"
