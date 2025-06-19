@@ -623,7 +623,7 @@ typing = [
 [package.metadata]
 requires-dist = [
     { name = "dagster", specifier = ">=1.10.19" },
-    { name = "meltano", specifier = ">=3.6" },
+    { name = "meltano", specifier = ">=3.6,<3.8" },
     { name = "orjson", specifier = ">=3.10.18" },
     { name = "typing-extensions", marker = "python_full_version < '3.12'", specifier = ">=4.5" },
 ]
