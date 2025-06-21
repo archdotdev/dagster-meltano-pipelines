@@ -7,6 +7,7 @@ from dagster_meltano_pipelines.resources import (
     Extractor,
     ExtractorConfig,
     Loader,
+    LoaderConfig,
     MeltanoPlugin,
     MeltanoPluginConfig,
 )
@@ -15,6 +16,7 @@ __all__ = [
     "Extractor",
     "ExtractorConfig",
     "Loader",
+    "LoaderConfig",
     "MeltanoPipelineComponent",
     "MeltanoPipeline",
     "MeltanoPlugin",

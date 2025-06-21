@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import dagster as dg
 import orjson
 from dagster.components.resolved.model import Resolver
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from dagster_meltano_pipelines.core import plugin_config_to_env
 from dagster_meltano_pipelines.project import MeltanoProject
@@ -33,7 +33,10 @@ class MeltanoProjectArgs(dg.Resolvable):
     project_dir: str
 
 
-def resolve_meltano_project(context: dg.ResolutionContext, model: BaseModel) -> MeltanoProject:
+def resolve_meltano_project(
+    context: dg.ResolutionContext,
+    model: BaseModel,
+) -> MeltanoProject:
     if isinstance(model, str):
         return MeltanoProject(
             context.resolve_source_relative_path(
@@ -60,30 +63,32 @@ ResolvedMeltanoProject: TypeAlias = t.Annotated[
 def pipeline_to_dagster_asset(
     pipeline_id: str,
     *,
+    pipeline: "MeltanoPipeline",
     project: MeltanoProject,
-    extractor: Extractor,
-    loader: Loader,
     description: t.Optional[str] = None,
     tags: t.Optional[t.Dict[str, str]] = None,
 ) -> dg.AssetsDefinition:
-    extractor_definition = project.plugins["extractors", extractor.name]
-    loader_definition = project.plugins["loaders", loader.name]
+    extractor_definition = project.plugins["extractors", pipeline.extractor.name]
+    loader_definition = project.plugins["loaders", pipeline.loader.name]
 
     @dg.asset(
         name=pipeline_id,
-        description=description or f"{extractor.name} → {loader.name}",
+        description=description or f"{pipeline.extractor.name} → {pipeline.loader.name}",
         tags=tags,
         kinds={"Meltano"},
     )
     def meltano_job(context: dg.AssetExecutionContext) -> None:
         context.log.info("Running pipeline: %s", pipeline_id)
-        env: t.Dict[str, str] = {**os.environ}
+        env: t.Dict[str, str] = {
+            **os.environ,
+            **pipeline.env,
+        }
 
-        if extractor.config:
-            env |= plugin_config_to_env(extractor_definition, extractor.config.model_dump())
+        if pipeline.extractor.config:
+            env |= plugin_config_to_env(extractor_definition, pipeline.extractor.config.model_dump())
 
-        if loader.config:
-            env |= plugin_config_to_env(loader_definition, loader.config.model_dump())
+        if pipeline.loader.config:
+            env |= plugin_config_to_env(loader_definition, pipeline.loader.config.model_dump())
 
         # TODO: Remove this
         context.log.info("Env: %s", env)
@@ -93,8 +98,8 @@ def pipeline_to_dagster_asset(
                 "meltano",
                 "run",
                 f"--run-id={context.run_id}",
-                extractor.name,
-                loader.name,
+                pipeline.extractor.name,
+                pipeline.loader.name,
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -133,6 +138,10 @@ class MeltanoPipeline(BaseModel):
     loader: Loader
     description: t.Optional[str] = None
     tags: t.Optional[t.Dict[str, str]] = None
+    env: t.Dict[str, str] = Field(
+        default_factory=dict,
+        description="Environment variables to pass to the Meltano pipeline",
+    )
 
 
 @dg.scaffold_with(MeltanoProjectScaffolder)
@@ -155,8 +164,7 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
                 pipeline_to_dagster_asset(
                     pipeline_id,
                     project=self.project,
-                    extractor=pipeline_args.extractor,
-                    loader=pipeline_args.loader,
+                    pipeline=pipeline_args,
                     description=pipeline_args.description,
                     tags=pipeline_args.tags,
                 )
