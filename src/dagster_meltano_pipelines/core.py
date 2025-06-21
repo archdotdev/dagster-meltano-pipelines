@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 import typing as t
-import dagster as dg
 
+import dagster as dg
 
 _all__ = [
     "plugin_config_to_env",

@@ -11,6 +11,7 @@ dependencies = [
     "dagster>=1.10.19",
     "meltano>=3.6,<3.8",
     "orjson>=3.10.18",
+    "pyyaml>=6.0.2",
     "typing-extensions>=4.5; python_version < '3.12'",
 ]
 
@@ -40,7 +41,11 @@ line-length = 120
 
 [tool.ruff.lint]
 extend-select = [
+    "A",
+    "B",
+    "I",
     "ICN",
+    "TC",
 ]
 
 [tool.ruff.lint.flake8-import-conventions]

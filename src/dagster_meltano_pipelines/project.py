@@ -1,8 +1,8 @@
-import typing as t
 import json
-import yaml
+import typing as t
 from pathlib import Path
 
+import yaml
 from dagster._record import IHaveNew, record_custom
 
 from dagster_meltano_pipelines.errors import DagsterMeltanoProjectNotFoundError

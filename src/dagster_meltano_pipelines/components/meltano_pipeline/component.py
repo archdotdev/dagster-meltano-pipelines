@@ -1,7 +1,7 @@
 import os
+import subprocess
 import sys
 import typing as t
-import subprocess
 from dataclasses import dataclass
 
 import dagster as dg
@@ -9,8 +9,10 @@ import orjson
 from dagster.components.resolved.model import Resolver
 from pydantic import BaseModel
 
-from dagster_meltano_pipelines.meltano_project import MeltanoProject
 from dagster_meltano_pipelines.core import plugin_config_to_env
+from dagster_meltano_pipelines.project import MeltanoProject
+from dagster_meltano_pipelines.resources import Extractor, Loader
+
 from .scaffolder import MeltanoProjectScaffolder
 
 if sys.version_info >= (3, 10):
@@ -55,40 +57,12 @@ ResolvedMeltanoProject: TypeAlias = t.Annotated[
 ]
 
 
-def _process_meltano_logs(context: dg.AssetExecutionContext, lines: t.Iterable[bytes]) -> None:
-    for line in lines:
-        try:
-            log_data = orjson.loads(line)
-        except orjson.JSONDecodeError:
-            continue
-
-        level = log_data.pop("level")
-        event = log_data.pop("event")
-        context.log.log(level, event, extra={"meltano": log_data})
-
-
-class MeltanoPluginConfig(dg.PermissiveConfig):
-    """Plugin configuration."""
-
-
-# Re-add MeltanoPlugin class for type annotations
-class MeltanoPlugin(dg.ConfigurableResource["MeltanoPlugin"]):
-    """Base class for Meltano plugins."""
-
-    name: str
-    config: t.Optional[MeltanoPluginConfig] = None
-
-    @property
-    def id(self) -> str:
-        return self.name.replace("-", "_")
-
-
 def pipeline_to_dagster_asset(
     pipeline_id: str,
     *,
     project: MeltanoProject,
-    extractor: MeltanoPlugin,
-    loader: MeltanoPlugin,
+    extractor: Extractor,
+    loader: Loader,
     description: t.Optional[str] = None,
     tags: t.Optional[t.Dict[str, str]] = None,
 ) -> dg.AssetsDefinition:
@@ -97,7 +71,7 @@ def pipeline_to_dagster_asset(
 
     @dg.asset(
         name=pipeline_id,
-        description=description or f"Move data from {extractor.id} to {loader.id}",
+        description=description or f"{extractor.name} → {loader.name}",
         tags=tags,
         kinds={"Meltano"},
     )
@@ -155,8 +129,8 @@ def pipeline_to_dagster_asset(
 class MeltanoPipeline(BaseModel):
     """Pipeline definition."""
 
-    extractor: MeltanoPlugin
-    loader: MeltanoPlugin
+    extractor: Extractor
+    loader: Loader
     description: t.Optional[str] = None
     tags: t.Optional[t.Dict[str, str]] = None
 
