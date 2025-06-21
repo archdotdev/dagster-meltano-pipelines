@@ -1,12 +1,20 @@
 from dagster_meltano_pipelines.components.meltano_pipeline import (
-    MeltanoPipelineComponent,
     MeltanoPipeline,
+    MeltanoPipelineComponent,
+)
+from dagster_meltano_pipelines.project import MeltanoProject
+from dagster_meltano_pipelines.resources import (
+    Extractor,
+    ExtractorConfig,
+    Loader,
     MeltanoPlugin,
     MeltanoPluginConfig,
 )
-from dagster_meltano_pipelines.meltano_project import MeltanoProject
 
 __all__ = [
+    "Extractor",
+    "ExtractorConfig",
+    "Loader",
     "MeltanoPipelineComponent",
     "MeltanoPipeline",
     "MeltanoPlugin",

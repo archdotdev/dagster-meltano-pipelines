@@ -1,8 +1,8 @@
-import yaml
 from pathlib import Path
 from typing import Optional
 
 import dagster as dg
+import yaml
 from meltano.cli import cli as meltano_cli  # type: ignore[attr-defined]
 from pydantic import BaseModel
 
