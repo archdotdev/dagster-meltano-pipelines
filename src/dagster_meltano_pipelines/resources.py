@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import dagster as dg
@@ -17,11 +16,11 @@ class ExtractorConfig(MeltanoPluginConfig):
     """Extractor configuration."""
 
     # https://github.com/meltano/meltano/blob/0dad7d51a36862e3df7a9f5cf19425540577e5c9/src/meltano/core/plugin/singer/tap.py#L172
-    catalog: Optional[Path] = Field(
+    catalog: Optional[str] = Field(
         description="Stream catalog file",
         alias="_catalog",
     )
-    state: Optional[Path] = Field(
+    state: Optional[str] = Field(
         description="Stream state file",
         alias="_state",
     )
@@ -46,6 +45,7 @@ class ExtractorConfig(MeltanoPluginConfig):
         alias="_select_filter",
     )
     use_cached_catalog: bool = Field(
+        default=True,
         description="Use cached catalog",
         alias="_use_cached_catalog",
     )
