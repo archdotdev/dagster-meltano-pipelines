@@ -58,28 +58,45 @@ def first_or(list: t.List[t.Any], default: t.Any) -> t.Any:
 def plugin_setting_to_field(
     *,
     setting: t.Dict[str, t.Any],
+    env_var: str | None = None,
 ) -> dg.Field:
+    if env_var:
+        default_value = dg.EnvVar(env_var).get_value()
+        if default_value and setting.get("kind") in ["object", "array"]:
+            default_value = json.loads(default_value)
+    else:
+        default_value = FIELD_NO_DEFAULT_PROVIDED  # type: ignore[assignment]
+
     return dg.Field(
         setting_to_dagster_type(setting),
+        default_value=default_value,
         description=setting.get("description"),
         is_required=False,
-        default_value=setting.get("value", FIELD_NO_DEFAULT_PROVIDED),
     )
 
 
-def plugin_to_dagster_resource(plugin: t.Dict[str, t.Any]) -> dg.ResourceDefinition:
+def plugin_to_dagster_resource(
+    plugin: t.Dict[str, t.Any],
+    *,
+    env_vars: t.Dict[str, str] | None = None,
+) -> dg.ResourceDefinition:
+    env_vars = env_vars or {}
     config_schema = {
-        setting["name"]: plugin_setting_to_field(setting=setting) for setting in plugin.get("settings", [])
+        setting["name"]: plugin_setting_to_field(
+            setting=setting,
+            env_var=env_vars.get(setting["name"]),
+        )
+        for setting in plugin.get("settings", [])
     }
 
     @dg.resource(
         config_schema=config_schema,
         description=plugin.get("description"),
     )
-    def meltano_plugin(context: dg.InitResourceContext) -> t.Dict[str, t.Any]:
+    def meltano_plugin(context: dg.InitResourceContext) -> t.Tuple[t.Dict[str, t.Any], t.Dict[str, t.Any]]:
         if context.log:
             context.log.info("context.resource_config: %s", context.resource_config)
-        return context.resource_config
+        return plugin, context.resource_config
 
     return meltano_plugin
 
