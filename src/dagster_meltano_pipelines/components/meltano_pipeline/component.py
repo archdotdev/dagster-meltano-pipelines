@@ -61,24 +61,25 @@ ResolvedMeltanoProject: TypeAlias = t.Annotated[
 
 
 def pipeline_to_dagster_asset(
-    pipeline_id: str,
-    *,
     pipeline: "MeltanoPipeline",
+    *,
     project: MeltanoProject,
-    description: t.Optional[str] = None,
-    tags: t.Optional[t.Dict[str, str]] = None,
 ) -> dg.AssetsDefinition:
     extractor_definition = project.plugins["extractors", pipeline.extractor.name]
     loader_definition = project.plugins["loaders", pipeline.loader.name]
 
     @dg.asset(
-        name=pipeline_id,
-        description=description or f"{pipeline.extractor.name} → {pipeline.loader.name}",
-        tags=tags,
+        name=pipeline.id,
+        description=pipeline.description or f"{pipeline.extractor.name} → {pipeline.loader.name}",
+        tags=pipeline.tags,
         kinds={"Meltano"},
+        metadata={
+            "extractor": extractor_definition,
+            "loader": loader_definition,
+        },
     )
     def meltano_job(context: dg.AssetExecutionContext) -> None:
-        context.log.info("Running pipeline: %s", pipeline_id)
+        context.log.info("Running pipeline: %s", pipeline.id)
         env: t.Dict[str, str] = {
             **os.environ,
             **pipeline.env,
@@ -134,6 +135,7 @@ def pipeline_to_dagster_asset(
 class MeltanoPipeline(BaseModel):
     """Pipeline definition."""
 
+    id: str
     extractor: Extractor
     loader: Loader
     description: t.Optional[str] = None
@@ -153,20 +155,24 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
     """
 
     project: ResolvedMeltanoProject
-    pipelines: t.Dict[str, MeltanoPipeline]
+    pipelines: t.List[MeltanoPipeline]
 
     @override
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         assets = []
+        seen_ids = set()
 
-        for pipeline_id, pipeline_args in self.pipelines.items():
+        for pipeline in self.pipelines:
+            if pipeline.id in seen_ids:
+                msg = f"Pipeline ID {pipeline.id} is not unique"
+                raise ValueError(msg)
+
+            seen_ids.add(pipeline.id)
+
             assets.append(
                 pipeline_to_dagster_asset(
-                    pipeline_id,
+                    pipeline,
                     project=self.project,
-                    pipeline=pipeline_args,
-                    description=pipeline_args.description,
-                    tags=pipeline_args.tags,
                 )
             )
 
