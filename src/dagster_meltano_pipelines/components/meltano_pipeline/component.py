@@ -104,7 +104,6 @@ def setup_ssh_config(
 
         ssh_config_file = tempfile.NamedTemporaryFile(mode="w", suffix="_ssh_config", dir=temp_dir, delete=False)
         ssh_config_file.write("\n".join(ssh_config_content))
-        ssh_config_file.close()
 
         yield ssh_config_file.name
 
