@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import dagster as dg
 import orjson
 from dagster.components.resolved.model import Resolver
-from pydantic import BaseModel, Field, SecretStr
+from pydantic import BaseModel, Field
 
 from dagster_meltano_pipelines.core import plugin_config_to_env
 from dagster_meltano_pipelines.project import MeltanoProject
@@ -65,7 +65,7 @@ ResolvedMeltanoProject: TypeAlias = t.Annotated[
 @contextmanager
 def setup_ssh_config(
     context: dg.AssetExecutionContext,
-    ssh_private_keys: t.List[SecretStr],
+    ssh_private_keys: t.List[str],
 ) -> t.Generator[t.Optional[str], None, None]:
     """Create temporary SSH config and key files for Git authentication.
 
@@ -83,7 +83,7 @@ def setup_ssh_config(
         key_files = []
         for i, key_content in enumerate(ssh_private_keys):
             key_file = tempfile.NamedTemporaryFile(mode="w", suffix=f"_id_rsa_{i}", dir=temp_dir, delete=False)
-            key_file.write(key_content.get_secret_value())
+            key_file.write(key_content)
             key_file.close()
             os.chmod(key_file.name, 0o600)
             key_files.append(key_file.name)
@@ -207,7 +207,7 @@ class MeltanoPipeline(BaseModel):
         default_factory=dict,
         description="Environment variables to pass to the Meltano pipeline",
     )
-    git_ssh_private_keys: t.List[SecretStr] = Field(
+    git_ssh_private_keys: t.List[str] = Field(
         default_factory=list,
         description="List of SSH private key contents for Git authentication",
     )
