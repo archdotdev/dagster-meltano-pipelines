@@ -149,6 +149,7 @@ def test_setup_ssh_config_temp_directory_isolation(mock_context: Mock, sample_ss
     # Create multiple SSH configs
     for _ in range(3):
         with setup_ssh_config(mock_context, ssh_keys) as ssh_config_path:
+            assert ssh_config_path is not None
             temp_dir = os.path.dirname(ssh_config_path)
             temp_dirs.append(temp_dir)
             assert os.path.exists(temp_dir)
@@ -167,6 +168,7 @@ def test_setup_ssh_config_secret_str_handling(mock_context: Mock) -> None:
     ssh_keys = [secret_key]
 
     with setup_ssh_config(mock_context, ssh_keys) as ssh_config_path:
+        assert ssh_config_path is not None
         temp_dir = os.path.dirname(ssh_config_path)
         key_files = [f for f in os.listdir(temp_dir) if "_id_rsa_" in f]
         key_file_path = os.path.join(temp_dir, key_files[0])
@@ -182,6 +184,7 @@ def test_setup_ssh_config_file_naming(mock_context: Mock, sample_ssh_keys: t.Lis
     ssh_keys = [SecretStr(key) for key in sample_ssh_keys]
 
     with setup_ssh_config(mock_context, ssh_keys) as ssh_config_path:
+        assert ssh_config_path is not None
         temp_dir = os.path.dirname(ssh_config_path)
 
         # SSH config file should have correct suffix
