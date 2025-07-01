@@ -1,7 +1,9 @@
 import os
 import subprocess
 import sys
+import tempfile
 import typing as t
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 import dagster as dg
@@ -60,6 +62,96 @@ ResolvedMeltanoProject: TypeAlias = t.Annotated[
 ]
 
 
+@contextmanager
+def setup_ssh_config(
+    context: dg.AssetExecutionContext,
+    ssh_private_keys: t.List[str],
+) -> t.Generator[t.Optional[str], None, None]:
+    """Create temporary SSH config and key files for Git authentication.
+
+    Yields:
+        SSH config file path
+    """
+    if not ssh_private_keys:
+        yield None
+        return
+
+    context.log.info("Setting up SSH configuration for Git authentication")
+
+    with tempfile.TemporaryDirectory(prefix="meltano_ssh_") as temp_dir:
+        # Create temporary key files
+        key_files = []
+        for i, key_content in enumerate(ssh_private_keys):
+            key_file = tempfile.NamedTemporaryFile(mode="w", suffix=f"_id_rsa_{i}", dir=temp_dir, delete=False)
+            key_file.write(key_content)
+            key_file.close()
+            os.chmod(key_file.name, 0o600)
+            key_files.append(key_file.name)
+
+        # Create SSH config file
+        ssh_config_content = []
+        for key_file_path in key_files:
+            ssh_config_content.extend(
+                [
+                    "Host *",
+                    f"    IdentityFile {key_file_path}",
+                    "    IdentitiesOnly yes",
+                    "    StrictHostKeyChecking no",
+                    "    UserKnownHostsFile /dev/null",
+                    "",
+                ]
+            )
+
+        ssh_config_file = tempfile.NamedTemporaryFile(mode="w", suffix="_ssh_config", dir=temp_dir, delete=False)
+        ssh_config_file.write("\n".join(ssh_config_content))
+        ssh_config_file.close()
+
+        yield ssh_config_file.name
+
+
+def _run_meltano_pipeline(
+    context: dg.AssetExecutionContext,
+    pipeline: "MeltanoPipeline",
+    project: MeltanoProject,
+    env: t.Dict[str, str],
+) -> None:
+    """Execute the Meltano pipeline."""
+    process = subprocess.Popen(
+        [
+            "meltano",
+            "run",
+            f"--run-id={context.run_id}",
+            pipeline.extractor.name,
+            pipeline.loader.name,
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        cwd=project.project_dir,
+        env=env,
+        text=False,
+        bufsize=1,
+    )
+
+    # Stream logs in real time
+    if process.stdout is not None:
+        for line in iter(process.stdout.readline, b""):
+            try:
+                log_data = orjson.loads(line)
+            except orjson.JSONDecodeError:
+                # If it's not valid JSON, log as raw text
+                context.log.info(line.decode("utf-8").strip())
+            else:
+                level = log_data.pop("level")
+                event = log_data.pop("event")
+                context.log.log(level, event, extra={"meltano": log_data})
+
+        # Wait for process to complete
+        exit_code = process.wait()
+
+        if exit_code != 0:
+            raise RuntimeError(f"Meltano job failed with exit code {exit_code}")
+
+
 def pipeline_to_dagster_asset(
     pipeline: "MeltanoPipeline",
     *,
@@ -94,40 +186,11 @@ def pipeline_to_dagster_asset(
         # TODO: Remove this
         context.log.info("Env: %s", env)
 
-        process = subprocess.Popen(
-            [
-                "meltano",
-                "run",
-                f"--run-id={context.run_id}",
-                pipeline.extractor.name,
-                pipeline.loader.name,
-            ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            cwd=project.project_dir,
-            env=env,
-            text=False,
-            bufsize=1,
-        )
+        with setup_ssh_config(context, pipeline.git_ssh_private_keys) as ssh_config_path:
+            if ssh_config_path:
+                env["GIT_SSH_COMMAND"] = f"ssh -F {ssh_config_path}"
 
-        # Stream logs in real time
-        if process.stdout is not None:
-            for line in iter(process.stdout.readline, b""):
-                try:
-                    log_data = orjson.loads(line)
-                except orjson.JSONDecodeError:
-                    # If it's not valid JSON, log as raw text
-                    context.log.info(line.decode("utf-8").strip())
-                else:
-                    level = log_data.pop("level")
-                    event = log_data.pop("event")
-                    context.log.log(level, event, extra={"meltano": log_data})
-
-            # Wait for process to complete
-            exit_code = process.wait()
-
-            if exit_code != 0:
-                raise RuntimeError(f"Meltano job failed with exit code {exit_code}")
+            _run_meltano_pipeline(context, pipeline, project, env)
 
     return meltano_job
 
@@ -143,6 +206,10 @@ class MeltanoPipeline(BaseModel):
     env: t.Dict[str, str] = Field(
         default_factory=dict,
         description="Environment variables to pass to the Meltano pipeline",
+    )
+    git_ssh_private_keys: t.List[str] = Field(
+        default_factory=list,
+        description="List of SSH private key contents for Git authentication",
     )
 
 
