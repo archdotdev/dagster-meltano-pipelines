@@ -87,6 +87,9 @@ def setup_ssh_config(
 
             # Create and enter context for each key file
             for i, key_content in enumerate(ssh_private_keys):
+                if not key_content.endswith("\n"):
+                    key_content += "\n"
+
                 key_file = stack.enter_context(
                     tempfile.NamedTemporaryFile(mode="w", suffix=f"_id_rsa_{i}", dir=temp_dir, delete=False)
                 )
