@@ -83,10 +83,11 @@ def test_setup_ssh_config_single_key(mock_context: Mock, sample_ssh_key: str) ->
         assert stat.filemode(key_stat.st_mode) == "-rw-------"
         assert key_stat.st_mode & 0o777 == 0o600
 
-        # Verify key file content
+        # Verify key file content (should have trailing newline added if missing)
         with open(key_file_path, "r") as f:
             key_content = f.read()
-        assert key_content == sample_ssh_key
+        expected_content = sample_ssh_key if sample_ssh_key.endswith("\n") else sample_ssh_key + "\n"
+        assert key_content == expected_content
 
     # After context exit, files should be cleaned up
     assert not os.path.exists(ssh_config_path)
@@ -130,10 +131,11 @@ def test_setup_ssh_config_multiple_keys(mock_context: Mock, sample_ssh_keys: t.L
             key_stat = os.stat(key_file_path)
             assert key_stat.st_mode & 0o777 == 0o600
 
-            # Check content
+            # Check content (should have trailing newline added if missing)
             with open(key_file_path, "r") as f:
                 key_content = f.read()
-            assert key_content == expected_key
+            expected_content = expected_key if expected_key.endswith("\n") else expected_key + "\n"
+            assert key_content == expected_content
 
     # Files should be cleaned up after context exit
     assert not os.path.exists(ssh_config_path)
@@ -172,10 +174,10 @@ def test_setup_ssh_config_secret_str_handling(mock_context: Mock) -> None:
         key_files = [f for f in os.listdir(temp_dir) if "_id_rsa_" in f]
         key_file_path = os.path.join(temp_dir, key_files[0])
 
-        # Verify the secret value was written to the file
+        # Verify the secret value was written to the file (should have trailing newline added)
         with open(key_file_path, "r") as f:
             key_content = f.read()
-        assert key_content == "test-secret-key-content"
+        assert key_content == "test-secret-key-content\n"
 
 
 def test_setup_ssh_config_file_naming(mock_context: Mock, sample_ssh_keys: t.List[str]) -> None:
