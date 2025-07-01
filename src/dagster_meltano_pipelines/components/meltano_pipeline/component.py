@@ -78,35 +78,54 @@ def setup_ssh_config(
 
     context.log.info("Setting up SSH configuration for Git authentication")
 
+    # Use context managers to ensure files stay open and accessible
     with tempfile.TemporaryDirectory(prefix="meltano_ssh_") as temp_dir:
-        # Create temporary key files
+        # Create temporary key files using context managers
         key_files = []
-        for i, key_content in enumerate(ssh_private_keys):
-            key_file = tempfile.NamedTemporaryFile(mode="w", suffix=f"_id_rsa_{i}", dir=temp_dir, delete=False)
-            key_file.write(key_content)
-            key_file.close()
-            os.chmod(key_file.name, 0o600)
-            key_files.append(key_file.name)
+        key_file_contexts = []
 
-        # Create SSH config file
-        ssh_config_content = []
-        for key_file_path in key_files:
-            ssh_config_content.extend(
-                [
-                    "Host *",
-                    f"    IdentityFile {key_file_path}",
-                    "    IdentitiesOnly yes",
-                    "    StrictHostKeyChecking no",
-                    "    UserKnownHostsFile /dev/null",
-                    "",
-                ]
-            )
+        for i, _key_content in enumerate(ssh_private_keys):
+            key_file_ctx = tempfile.NamedTemporaryFile(mode="w", suffix=f"_id_rsa_{i}", dir=temp_dir, delete=False)
+            key_file_contexts.append(key_file_ctx)
 
-        ssh_config_file = tempfile.NamedTemporaryFile(mode="w", suffix="_ssh_config", dir=temp_dir, delete=False)
-        ssh_config_file.write("\n".join(ssh_config_content))
-        ssh_config_file.close()
+        try:
+            # Enter all key file contexts and write content
+            for key_content, key_file in zip(ssh_private_keys, key_file_contexts):
+                key_file.__enter__()
+                key_file.write(key_content)
+                key_file.flush()
+                os.chmod(key_file.name, 0o600)
+                key_files.append(key_file.name)
 
-        yield ssh_config_file.name
+            # Create SSH config file
+            ssh_config_content = []
+            for key_file_path in key_files:
+                ssh_config_content.extend(
+                    [
+                        "Host *",
+                        f"    IdentityFile {key_file_path}",
+                        "    IdentitiesOnly yes",
+                        "    StrictHostKeyChecking no",
+                        "    UserKnownHostsFile /dev/null",
+                        "",
+                    ]
+                )
+
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix="_ssh_config", dir=temp_dir, delete=False
+            ) as ssh_config_file:
+                ssh_config_file.write("\n".join(ssh_config_content))
+                ssh_config_file.flush()
+
+                yield ssh_config_file.name
+
+        finally:
+            # Exit all key file contexts
+            for key_file in key_file_contexts:
+                try:
+                    key_file.__exit__(None, None, None)
+                except Exception:
+                    pass
 
 
 def _run_meltano_pipeline(

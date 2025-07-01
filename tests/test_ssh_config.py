@@ -6,7 +6,6 @@ from unittest.mock import Mock
 
 import dagster as dg
 import pytest
-from pydantic import SecretStr
 
 from dagster_meltano_pipelines.components.meltano_pipeline.component import setup_ssh_config
 
@@ -53,7 +52,7 @@ def test_setup_ssh_config_empty_keys(mock_context: Mock) -> None:
 
 def test_setup_ssh_config_single_key(mock_context: Mock, sample_ssh_key: str) -> None:
     """Test SSH config setup with a single key."""
-    ssh_keys = [SecretStr(sample_ssh_key)]
+    ssh_keys = [sample_ssh_key]
 
     with setup_ssh_config(mock_context, ssh_keys) as ssh_config_path:
         assert ssh_config_path is not None
@@ -99,7 +98,7 @@ def test_setup_ssh_config_single_key(mock_context: Mock, sample_ssh_key: str) ->
 
 def test_setup_ssh_config_multiple_keys(mock_context: Mock, sample_ssh_keys: t.List[str]) -> None:
     """Test SSH config setup with multiple keys."""
-    ssh_keys = [SecretStr(key) for key in sample_ssh_keys]
+    ssh_keys = sample_ssh_keys
 
     with setup_ssh_config(mock_context, ssh_keys) as ssh_config_path:
         assert ssh_config_path is not None
@@ -143,7 +142,7 @@ def test_setup_ssh_config_multiple_keys(mock_context: Mock, sample_ssh_keys: t.L
 
 def test_setup_ssh_config_temp_directory_isolation(mock_context: Mock, sample_ssh_key: str) -> None:
     """Test that each SSH config setup uses an isolated temporary directory."""
-    ssh_keys = [SecretStr(sample_ssh_key)]
+    ssh_keys = [sample_ssh_key]
     temp_dirs = []
 
     # Create multiple SSH configs
@@ -164,7 +163,7 @@ def test_setup_ssh_config_temp_directory_isolation(mock_context: Mock, sample_ss
 
 def test_setup_ssh_config_secret_str_handling(mock_context: Mock) -> None:
     """Test that SecretStr values are properly handled."""
-    secret_key = SecretStr("test-secret-key-content")
+    secret_key = "test-secret-key-content"
     ssh_keys = [secret_key]
 
     with setup_ssh_config(mock_context, ssh_keys) as ssh_config_path:
@@ -181,7 +180,7 @@ def test_setup_ssh_config_secret_str_handling(mock_context: Mock) -> None:
 
 def test_setup_ssh_config_file_naming(mock_context: Mock, sample_ssh_keys: t.List[str]) -> None:
     """Test that SSH config and key files are named correctly."""
-    ssh_keys = [SecretStr(key) for key in sample_ssh_keys]
+    ssh_keys = sample_ssh_keys
 
     with setup_ssh_config(mock_context, ssh_keys) as ssh_config_path:
         assert ssh_config_path is not None
