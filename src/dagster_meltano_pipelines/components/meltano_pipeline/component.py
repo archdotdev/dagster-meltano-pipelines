@@ -182,13 +182,12 @@ def pipeline_to_dagster_asset(
         if pipeline.loader.config:
             env |= plugin_config_to_env(loader_definition, pipeline.loader.config.model_dump())
 
-        # TODO: Remove this
-        context.log.info("Env: %s", env)
-
         with setup_ssh_config(context, pipeline.git_ssh_private_keys) as ssh_config_path:
             if ssh_config_path:
                 env["GIT_SSH_COMMAND"] = f"ssh -F {ssh_config_path}"
 
+            # TODO: Remove this
+            context.log.info("Env: %s", env)
             _run_meltano_pipeline(context, pipeline, project, env)
 
     return meltano_job
