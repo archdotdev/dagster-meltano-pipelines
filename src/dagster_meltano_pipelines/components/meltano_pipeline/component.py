@@ -12,7 +12,6 @@ import orjson
 from dagster.components.resolved.model import Resolver
 from pydantic import BaseModel, Field
 
-from dagster_meltano_pipelines.core import plugin_config_to_env
 from dagster_meltano_pipelines.project import MeltanoProject
 from dagster_meltano_pipelines.resources import Extractor, Loader
 
@@ -185,13 +184,9 @@ def pipeline_to_dagster_asset(
         env: t.Dict[str, str] = {
             **os.environ,
             **pipeline.env,
+            **pipeline.extractor.as_env(),
+            **pipeline.loader.as_env(),
         }
-
-        if pipeline.extractor.config:
-            env |= plugin_config_to_env(extractor_definition, pipeline.extractor.config.model_dump())
-
-        if pipeline.loader.config:
-            env |= plugin_config_to_env(loader_definition, pipeline.loader.config.model_dump())
 
         with setup_ssh_config(context, pipeline.git_ssh_private_keys) as ssh_config_path:
             if ssh_config_path:

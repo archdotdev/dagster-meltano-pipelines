@@ -1,3 +1,5 @@
+import collections.abc
+import json
 from typing import Any, Dict, List, Optional
 
 import dagster as dg
@@ -44,8 +46,7 @@ class ExtractorConfig(MeltanoPluginConfig):
         description="Stream selection filter",
         alias="_select_filter",
     )
-    use_cached_catalog: bool = Field(
-        default=True,
+    use_cached_catalog: Optional[bool] = Field(
         description="Use cached catalog",
         alias="_use_cached_catalog",
     )
@@ -66,6 +67,30 @@ class MeltanoPlugin(dg.ConfigurableResource["MeltanoPlugin"]):
 
     name: str = Field(description="The Meltano plugin name")
     config: Optional[MeltanoPluginConfig] = Field(description="The Meltano plugin configuration")
+
+    def as_env(self) -> Dict[str, str]:
+        """Convert the plugin configuration to a dictionary of environment variables."""
+        env: Dict[str, str] = {}
+        if not self.config:
+            return env
+
+        prefix = self.name.upper().replace("-", "_")
+
+        for key, value in self.config.model_dump().items():
+            suffix = key.upper()
+
+            # Retrieve the value from the environment variable
+            if isinstance(value, dg.EnvVar):
+                value = value.get_value()
+
+            # Convert array and object values to JSON strings (only if they are not coming from an environment variable)
+            elif isinstance(value, (collections.abc.Mapping, list, tuple)):
+                value = json.dumps(value)
+
+            if value is not None:
+                env[f"{prefix}_{suffix}"] = str(value)
+
+        return env
 
 
 class Extractor(MeltanoPlugin):
