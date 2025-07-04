@@ -1,6 +1,7 @@
+import abc
 import collections.abc
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -101,3 +102,110 @@ class Extractor(MeltanoPlugin):
 
 class Loader(MeltanoPlugin):
     """Loader."""
+
+
+def _dict_to_env(value: collections.abc.Mapping[str, Any], *, prefix: Optional[str] = None) -> Dict[str, str]:
+    env: Dict[str, str] = {}
+    for k, v in value.items():
+        key = f"{prefix}_{k.upper()}" if prefix else k.upper()
+        if isinstance(v, dg.EnvVar):
+            v = v.get_value()
+        elif isinstance(v, (list, tuple)):
+            v = json.dumps(v)
+        elif isinstance(v, collections.abc.Mapping):
+            env |= _dict_to_env(v, prefix=key)
+            continue
+
+        if v is not None:
+            env[key] = str(v)
+
+    return env
+
+
+class AsEnv(dg.PermissiveConfig):
+    """Mixin for converting the configuration to a dictionary of environment variables."""
+
+    @property
+    @abc.abstractmethod
+    def env_prefix(self) -> str:
+        """The environment variable prefix."""
+        ...
+
+    def as_env(self) -> Dict[str, str]:
+        """Convert the configuration to a dictionary of environment variables."""
+        return _dict_to_env(self.model_dump(), prefix=self.env_prefix)
+
+
+class StateBackendConfig(AsEnv):
+    """State backend."""
+
+    uri: str = Field(description="State backend URI")
+
+    @property
+    def env_prefix(self) -> str:
+        """The environment variable prefix."""
+        return "STATE_BACKEND"
+
+
+class VenvConfig(AsEnv):
+    """Venv backend."""
+
+    backend: Literal["virtualenv", "uv"] = Field(description="Virtual Environment backend")
+
+    @property
+    def env_prefix(self) -> str:
+        """The environment variable prefix."""
+        return "VENV"
+
+
+class CLIConfig(AsEnv):
+    """CLI configuration."""
+
+    log_level: Optional[Literal["debug", "info", "warning", "error", "critical"]] = Field(description="Log level")
+    log_format: Optional[Literal["json", "text"]] = Field(description="Log format")
+
+    @property
+    def env_prefix(self) -> str:
+        """The environment variable prefix."""
+        return "CLI"
+
+
+class MeltanoConfig(AsEnv):
+    """Plugin configuration."""
+
+    state_backend: Optional[StateBackendConfig] = Field(description="State backend")
+    venv: Optional[VenvConfig] = Field(description="Virtual Environment configuration")
+    cli: Optional[CLIConfig] = Field(description="CLI configuration")
+
+    @property
+    def env_prefix(self) -> str:
+        """The environment variable prefix."""
+        return "MELTANO"
+
+    def as_env(self) -> Dict[str, str]:
+        """Convert the plugin configuration to a dictionary of environment variables."""
+        env: Dict[str, str] = {}
+        if self.state_backend:
+            for key, value in self.state_backend.as_env().items():
+                env[f"{self.env_prefix}_{key}"] = value
+
+        if self.venv:
+            for key, value in self.venv.as_env().items():
+                env[f"{self.env_prefix}_{key}"] = value
+
+        if self.cli:
+            for key, value in self.cli.as_env().items():
+                env[f"{self.env_prefix}_{key}"] = value
+
+        for key, value in self.model_dump(exclude={"state_backend", "venv", "cli"}).items():
+            suffix = key.upper()
+            if isinstance(value, dg.EnvVar):
+                value = value.get_value()  # type: ignore[assignment]
+
+            elif isinstance(value, (collections.abc.Mapping, list, tuple)):
+                value = json.dumps(value)
+
+            if value is not None:
+                env[f"{self.env_prefix}_{suffix}"] = str(value)
+
+        return env
