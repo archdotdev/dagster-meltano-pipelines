@@ -13,7 +13,7 @@ from dagster.components.resolved.model import Resolver
 from pydantic import BaseModel, Field
 
 from dagster_meltano_pipelines.project import MeltanoProject
-from dagster_meltano_pipelines.resources import Extractor, Loader
+from dagster_meltano_pipelines.resources import Extractor, Loader, MeltanoConfig
 
 from .scaffolder import MeltanoProjectScaffolder
 
@@ -181,11 +181,16 @@ def pipeline_to_dagster_asset(
     )
     def meltano_job(context: dg.AssetExecutionContext) -> None:
         context.log.info("Running pipeline: %s", pipeline.id)
-        env: t.Dict[str, str] = {
-            **os.environ,
-            **pipeline.env,
+        env: t.Dict[str, str] = {**os.environ}
+
+        if pipeline.meltano_config:
+            env |= pipeline.meltano_config.as_env()
+
+        env = {
+            **env,
             **pipeline.extractor.as_env(),
             **pipeline.loader.as_env(),
+            **pipeline.env,
         }
 
         with setup_ssh_config(context, pipeline.git_ssh_private_keys) as ssh_config_path:
@@ -205,6 +210,7 @@ class MeltanoPipeline(BaseModel):
     loader: Loader
     description: t.Optional[str] = None
     tags: t.Optional[t.Dict[str, str]] = None
+    meltano_config: t.Optional[MeltanoConfig] = Field(None, description="Meltano configuration")
     env: t.Dict[str, str] = Field(
         default_factory=dict,
         description="Environment variables to pass to the Meltano pipeline",
