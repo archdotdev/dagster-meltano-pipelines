@@ -125,11 +125,17 @@ def _run_meltano_pipeline(
     env: t.Dict[str, str],
 ) -> None:
     """Execute the Meltano pipeline."""
+    command = [
+        "meltano",
+        "run",
+        f"--run-id={context.run_id}",
+    ]
+    if pipeline.state_suffix:
+        command.append(f"--state-id-suffix={pipeline.state_suffix}")
+
     process = subprocess.Popen(
         [
-            "meltano",
-            "run",
-            f"--run-id={context.run_id}",
+            *command,
             pipeline.extractor.name,
             pipeline.loader.name,
         ],
@@ -219,6 +225,8 @@ class MeltanoPipeline(BaseModel):
         default_factory=list,
         description="List of SSH private key contents for Git authentication",
     )
+
+    state_suffix: t.Optional[str] = Field(None, description="Suffix to add to the state backend environment variables")
 
 
 @dg.scaffold_with(MeltanoProjectScaffolder)
