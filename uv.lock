@@ -629,7 +629,7 @@ typing = [
 [package.metadata]
 requires-dist = [
     { name = "dagster", specifier = ">=1.10.19" },
-    { name = "meltano", specifier = ">=3.6,<3.8" },
+    { name = "meltano", specifier = ">=3.6,<3.9" },
     { name = "orjson", specifier = ">=3.10.18" },
     { name = "pydantic", specifier = ">=2.10.0" },
     { name = "pyyaml", specifier = ">=6.0.2" },
@@ -1165,7 +1165,7 @@ wheels = [
 
 [[package]]
 name = "meltano"
-version = "3.7.9"
+version = "3.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiodocker" },
@@ -1192,20 +1192,18 @@ dependencies = [
     { name = "requests" },
     { name = "rich" },
     { name = "ruamel-yaml" },
-    { name = "setuptools", marker = "python_full_version >= '3.12'" },
     { name = "smart-open" },
     { name = "snowplow-tracker" },
     { name = "sqlalchemy" },
     { name = "structlog" },
     { name = "typing-extensions" },
     { name = "tzlocal" },
-    { name = "urllib3", version = "1.26.20", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "uv" },
     { name = "virtualenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9f/08/c9fc57e3329c8b89d02e9e7bc88ce5dcc8e402c5e530aba17288e6966470/meltano-3.7.9.tar.gz", hash = "sha256:532cdd4eff846bbc11a4353bf6e7d2206f763e21c4505f1752d466d16d61d9f1", size = 12695454, upload-time = "2025-06-26T19:39:36.177Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/0c/c9663bfe6ed4e08b8775be71ee4f26abc52cc9c46fb825616f3d7e2c28ce/meltano-3.8.0.tar.gz", hash = "sha256:4a65dc1a9f0a6b1648842c7539a08d4b143e481f5a1a1ff84e01254436833285", size = 12701501, upload-time = "2025-07-07T16:56:58.728Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/29/28/76e1a41ea8f5f8114c5ecfbc10c8f30418f0e124b2c6268052f5e00a5503/meltano-3.7.9-py3-none-any.whl", hash = "sha256:815cb5826084e1bb938bb06df1f6e20059df72d568a9c017d677245647dbeaaf", size = 362141, upload-time = "2025-06-26T19:39:34.028Z" },
+    { url = "https://files.pythonhosted.org/packages/c3/b3/dbc978d6f590acd3536a561fdf721cbd034e2dd853068aec48a71f2e5ae9/meltano-3.8.0-py3-none-any.whl", hash = "sha256:9337be27a9b994ce24769931bd843338d45ee70fe2adb7f679547d08eeb0f697", size = 366561, upload-time = "2025-07-07T16:56:55.894Z" },
 ]
 
 [[package]]
@@ -2011,8 +2009,7 @@ dependencies = [
     { name = "certifi" },
     { name = "charset-normalizer" },
     { name = "idna" },
-    { name = "urllib3", version = "1.26.20", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "urllib3", version = "2.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "urllib3" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e1/0a/929373653770d8a0d7ea76c37de6e41f11eb07559b103b1c02cafb3f7cf8/requests-2.32.4.tar.gz", hash = "sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422", size = 135258, upload-time = "2025-06-09T16:43:07.34Z" }
 wheels = [
@@ -2482,24 +2479,8 @@ wheels = [
 
 [[package]]
 name = "urllib3"
-version = "1.26.20"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version < '3.11'",
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e4/e8/6ff5e6bc22095cfc59b6ea711b687e2b7ed4bdb373f7eeec370a97d7392f/urllib3-1.26.20.tar.gz", hash = "sha256:40c2dc0c681e47eb8f90e7e27bf6ff7df2e677421fd46756da1161c39ca70d32", size = 307380, upload-time = "2024-08-29T15:43:11.37Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/33/cf/8435d5a7159e2a9c83a95896ed596f68cf798005fe107cc655b5c5c14704/urllib3-1.26.20-py2.py3-none-any.whl", hash = "sha256:0ed14ccfbf1c30a9072c7ca157e4319b70d65f623e91e7b32fadb2853431016e", size = 144225, upload-time = "2024-08-29T15:43:08.921Z" },
-]
-
-[[package]]
-name = "urllib3"
 version = "2.5.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "python_full_version >= '3.12'",
-    "python_full_version == '3.11.*'",
-]
 sdist = { url = "https://files.pythonhosted.org/packages/15/22/9ee70a2574a4f4599c47dd506532914ce044817c7752a79b6a51286319bc/urllib3-2.5.0.tar.gz", hash = "sha256:3fc47733c7e419d4bc3f6b3dc2b4f890bb743906a30d56ba4a5bfa4bbff92760", size = 393185, upload-time = "2025-06-18T14:07:41.644Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/c2/fe1e52489ae3122415c51f387e221dd0773709bad6c6cdaa599e8a2c5185/urllib3-2.5.0-py3-none-any.whl", hash = "sha256:e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc", size = 129795, upload-time = "2025-06-18T14:07:40.39Z" },
