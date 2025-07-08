@@ -5,6 +5,7 @@ from dagster_meltano_pipelines.components.meltano_pipeline import (
 from dagster_meltano_pipelines.project import MeltanoProject
 from dagster_meltano_pipelines.resources import (
     CLIConfig,
+    ELTConfig,
     Extractor,
     ExtractorConfig,
     Loader,
@@ -18,6 +19,7 @@ from dagster_meltano_pipelines.resources import (
 
 __all__ = [
     "CLIConfig",
+    "ELTConfig",
     "Extractor",
     "ExtractorConfig",
     "Loader",
