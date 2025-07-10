@@ -6,6 +6,10 @@ readme = "README.md"
 authors = [
     { name = "Edgar Ramírez-Mondragón", email = "edgarrm358@gmail.com" }
 ]
+license = "MIT"
+license-files = [
+    "LICENSE",
+]
 requires-python = ">=3.9,<3.13"
 dependencies = [
     "dagster>=1.10.19",
