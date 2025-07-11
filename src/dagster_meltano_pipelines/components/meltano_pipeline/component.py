@@ -173,6 +173,7 @@ def _run_meltano_pipeline(
         "meltano",
         "run",
         f"--run-id={context.run_id}",
+        "--log-format=json",
     ]
     if pipeline.state_suffix:
         command.append(f"--state-id-suffix={pipeline.state_suffix}")
