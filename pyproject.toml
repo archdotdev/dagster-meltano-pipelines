@@ -6,7 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Edgar Ramírez-Mondragón", email = "edgarrm358@gmail.com" }
 ]
-requires-python = ">=3.9,<3.13"
+requires-python = ">=3.9"
 dependencies = [
     "dagster>=1.10.19",
     "meltano>=3.6,<3.9",
@@ -23,7 +23,7 @@ dependencies = [
 dev = [
     { include-group = "testing" },
     { include-group = "typing" },
-    "dagster-dg-cli[local]>=1.10.19",
+    "dagster-dg-cli>=1.10.19",
 ]
 testing = [
     "pytest>=8.4",
@@ -59,6 +59,7 @@ dagster = "dg"
 min_version = "4.22"
 env_list = [
     "type",
+    "3.13",
     "3.12",
     "3.11",
     "3.10",
