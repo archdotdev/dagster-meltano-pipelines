@@ -118,6 +118,50 @@ def setup_ssh_config(
             yield ssh_config_file.name
 
 
+def build_pipeline_env(
+    pipeline: "MeltanoPipeline",
+    project: MeltanoProject,
+    ssh_config_path: t.Optional[str] = None,
+    base_env: t.Optional[t.Dict[str, str]] = None,
+) -> t.Dict[str, str]:
+    """Build environment variables for the Meltano pipeline.
+
+    Args:
+        pipeline: The Meltano pipeline configuration
+        project: The Meltano project instance
+        ssh_config_path: Path to SSH config file, if any
+        base_env: Base environment variables (defaults to os.environ)
+
+    Returns:
+        Dictionary of environment variables for the pipeline
+    """
+    if base_env is None:
+        base_env = dict(os.environ)
+    else:
+        base_env = dict(base_env)
+
+    # Prevent MELTANO_PROJECT_ROOT from interfering with configured project location
+    base_env.pop("MELTANO_PROJECT_ROOT", None)
+
+    # Add meltano config if present
+    if pipeline.meltano_config:
+        base_env.update(pipeline.meltano_config.as_env())
+
+    # Build final environment with all pipeline-specific variables
+    env = {
+        **base_env,
+        **pipeline.extractor.as_env(),
+        **pipeline.loader.as_env(),
+        **pipeline.env,
+    }
+
+    # Add SSH config if provided
+    if ssh_config_path:
+        env["GIT_SSH_COMMAND"] = f"ssh -F {ssh_config_path}"
+
+    return env
+
+
 def _run_meltano_pipeline(
     context: dg.AssetExecutionContext,
     pipeline: "MeltanoPipeline",
@@ -187,22 +231,18 @@ def pipeline_to_dagster_asset(
     )
     def meltano_job(context: dg.AssetExecutionContext) -> None:
         context.log.info("Running pipeline: %s", pipeline.id)
-        env: t.Dict[str, str] = {**os.environ}
 
-        if pipeline.meltano_config:
-            env |= pipeline.meltano_config.as_env()
-
-        env = {
-            **env,
-            **pipeline.extractor.as_env(),
-            **pipeline.loader.as_env(),
-            **pipeline.env,
-        }
+        # Log warning if MELTANO_PROJECT_ROOT was removed
+        if "MELTANO_PROJECT_ROOT" in os.environ:
+            context.log.warning(
+                "Removing MELTANO_PROJECT_ROOT environment variable (value: %s) to prevent "
+                "interference with configured project directory: %s",
+                os.environ["MELTANO_PROJECT_ROOT"],
+                project.project_dir,
+            )
 
         with setup_ssh_config(context, pipeline.git_ssh_private_keys) as ssh_config_path:
-            if ssh_config_path:
-                env["GIT_SSH_COMMAND"] = f"ssh -F {ssh_config_path}"
-
+            env = build_pipeline_env(pipeline, project, ssh_config_path)
             _run_meltano_pipeline(context, pipeline, project, env)
 
     return meltano_job
