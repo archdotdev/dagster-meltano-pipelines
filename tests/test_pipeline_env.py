@@ -59,7 +59,6 @@ def meltano_config() -> MeltanoConfig:
             uri="s3://test-bucket/state",
         ),
         cli=CLIConfig(log_level="info", log_format="json"),
-        venv=None,
     )
 
 

@@ -170,12 +170,24 @@ class CLIConfig(AsEnv):
         return "CLI"
 
 
+class ELTConfig(AsEnv):
+    """ELT configuration."""
+
+    buffer_size: Optional[int] = Field(description="Buffer size")
+
+    @property
+    def env_prefix(self) -> str:
+        """The environment variable prefix."""
+        return "ELT"
+
+
 class MeltanoConfig(AsEnv):
     """Plugin configuration."""
 
-    state_backend: Optional[StateBackendConfig] = Field(description="State backend")
-    venv: Optional[VenvConfig] = Field(description="Virtual Environment configuration")
-    cli: Optional[CLIConfig] = Field(description="CLI configuration")
+    state_backend: Optional[StateBackendConfig] = Field(default=None, description="State backend")
+    venv: Optional[VenvConfig] = Field(default=None, description="Virtual Environment configuration")
+    cli: Optional[CLIConfig] = Field(default=None, description="CLI configuration")
+    elt: Optional[ELTConfig] = Field(default=None, description="ELT configuration")
 
     @property
     def env_prefix(self) -> str:
@@ -197,7 +209,11 @@ class MeltanoConfig(AsEnv):
             for key, value in self.cli.as_env().items():
                 env[f"{self.env_prefix}_{key}"] = value
 
-        for key, value in self.model_dump(exclude={"state_backend", "venv", "cli"}).items():
+        if self.elt:
+            for key, value in self.elt.as_env().items():
+                env[f"{self.env_prefix}_{key}"] = value
+
+        for key, value in self.model_dump(exclude={"state_backend", "venv", "cli", "elt"}).items():
             suffix = key.upper()
             if isinstance(value, dg.EnvVar):
                 value = value.get_value()  # type: ignore[assignment]
