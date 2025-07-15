@@ -189,6 +189,15 @@ def pipeline_to_dagster_asset(
         context.log.info("Running pipeline: %s", pipeline.id)
         env: t.Dict[str, str] = {**os.environ}
 
+        # Prevent MELTANO_PROJECT_ROOT from interfering with configured project location
+        if removed_value := env.pop("MELTANO_PROJECT_ROOT", None):
+            context.log.warning(
+                "Removing MELTANO_PROJECT_ROOT environment variable (value: %s) to prevent "
+                "interference with configured project directory: %s",
+                removed_value,
+                project.project_dir,
+            )
+
         if pipeline.meltano_config:
             env |= pipeline.meltano_config.as_env()
 
