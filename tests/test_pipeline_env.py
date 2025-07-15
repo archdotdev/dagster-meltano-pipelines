@@ -9,7 +9,6 @@ from dagster_meltano_pipelines.components.meltano_pipeline.component import (
 from dagster_meltano_pipelines.project import MeltanoProject
 from dagster_meltano_pipelines.resources import (
     CLIConfig,
-    ELTConfig,
     Extractor,
     ExtractorConfig,
     Loader,
@@ -60,8 +59,6 @@ def meltano_config() -> MeltanoConfig:
             uri="s3://test-bucket/state",
         ),
         cli=CLIConfig(log_level="info", log_format="json"),
-        venv=None,
-        elt=ELTConfig(buffer_size=1024),
     )
 
 
@@ -150,7 +147,6 @@ def test_build_pipeline_env_with_meltano_config(
     assert result["MELTANO_STATE_BACKEND_URI"] == "s3://test-bucket/state"
     assert result["MELTANO_CLI_LOG_LEVEL"] == "info"
     assert result["MELTANO_CLI_LOG_FORMAT"] == "json"
-    assert result["MELTANO_ELT_BUFFER_SIZE"] == "1024"
 
     # Should contain extractor, loader, and pipeline env variables
     assert result["TAP_TEST_API_KEY"] == "secret123"

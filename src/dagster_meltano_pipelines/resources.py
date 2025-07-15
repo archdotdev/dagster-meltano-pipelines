@@ -184,10 +184,10 @@ class ELTConfig(AsEnv):
 class MeltanoConfig(AsEnv):
     """Plugin configuration."""
 
-    state_backend: Optional[StateBackendConfig] = Field(description="State backend")
-    venv: Optional[VenvConfig] = Field(description="Virtual Environment configuration")
-    cli: Optional[CLIConfig] = Field(description="CLI configuration")
-    elt: Optional[ELTConfig] = Field(description="ELT configuration")
+    state_backend: Optional[StateBackendConfig] = Field(default=None, description="State backend")
+    venv: Optional[VenvConfig] = Field(default=None, description="Virtual Environment configuration")
+    cli: Optional[CLIConfig] = Field(default=None, description="CLI configuration")
+    elt: Optional[ELTConfig] = Field(default=None, description="ELT configuration")
 
     @property
     def env_prefix(self) -> str:
