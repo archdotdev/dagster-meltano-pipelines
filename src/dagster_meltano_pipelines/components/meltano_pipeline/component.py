@@ -243,6 +243,27 @@ def pipeline_to_dagster_asset(
 
         with setup_ssh_config(context, pipeline.git_ssh_private_keys) as ssh_config_path:
             env = build_pipeline_env(pipeline, project, ssh_config_path)
+
+            # Debug logging for environment variables
+            context.log.info(f"[DEBUG] Environment variables for pipeline {pipeline.id}:")
+
+            # Log loader environment variables
+            loader_env = pipeline.loader.as_env()
+            context.log.info(f"[DEBUG] Loader ({pipeline.loader.name}) environment variables:")
+            for key, value in sorted(loader_env.items()):
+                if any(sensitive in key for sensitive in ["CLIENT_ID", "CLIENT_SECRET", "TENANT_ID", "ST_APP_KEY"]):
+                    context.log.info(f"[DEBUG]   {key} = {'<present>' if value else '<missing/empty>'}")
+                else:
+                    context.log.info(f"[DEBUG]   {key} = {value}")
+
+            # Log what's actually in the final env being passed to Meltano
+            context.log.info("[DEBUG] Final environment variables being passed to Meltano:")
+            for key, value in sorted(env.items()):
+                if key.startswith("TARGET_SERVICE_TITAN_") and any(
+                    sensitive in key for sensitive in ["CLIENT_ID", "CLIENT_SECRET", "TENANT_ID", "ST_APP_KEY"]
+                ):
+                    context.log.info(f"[DEBUG]   {key} = {'<present>' if value else '<missing/empty>'}")
+
             _run_meltano_pipeline(context, pipeline, project, env)
 
     return meltano_job
