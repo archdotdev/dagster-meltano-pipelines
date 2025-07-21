@@ -227,8 +227,9 @@ def test_build_pipeline_env_no_meltano_config(simple_pipeline: MeltanoPipeline, 
 
     result = build_pipeline_env(simple_pipeline, mock_project, base_env=base_env)
 
-    # Should not contain Meltano config variables
-    assert not any(key.startswith("MELTANO_") for key in result.keys())
+    # Should only contain default log format, no other Meltano config variables
+    meltano_vars = {key: value for key, value in result.items() if key.startswith("MELTANO_")}
+    assert meltano_vars == {"MELTANO_CLI_LOG_FORMAT": "json"}
 
     # Should contain other variables
     assert result["BASE_VAR"] == "base_value"
@@ -247,7 +248,7 @@ def test_build_pipeline_env_empty_base_env(simple_pipeline: MeltanoPipeline, moc
     assert result["TARGET_TEST_HOST"] == "db.test.com"
     assert result["CUSTOM_VAR"] == "custom_value"
 
-    # Should not contain any unexpected variables
+    # Should contain expected variables including default log format
     expected_keys = {
         "TAP_TEST_API_KEY",
         "TAP_TEST_BASE_URL",
@@ -255,8 +256,10 @@ def test_build_pipeline_env_empty_base_env(simple_pipeline: MeltanoPipeline, moc
         "TARGET_TEST_PORT",
         "TARGET_TEST_DATABASE",
         "CUSTOM_VAR",
+        "MELTANO_CLI_LOG_FORMAT",
     }
     assert set(result.keys()) == expected_keys
+    assert result["MELTANO_CLI_LOG_FORMAT"] == "json"
 
 
 def test_build_pipeline_env_preserves_base_env_copy(
@@ -274,3 +277,15 @@ def test_build_pipeline_env_preserves_base_env_copy(
     # Result should have MELTANO_PROJECT_ROOT removed
     assert "MELTANO_PROJECT_ROOT" not in result
     assert result["ORIGINAL_VAR"] == "original_value"
+
+
+def test_build_pipeline_env_respects_existing_log_format(
+    simple_pipeline: MeltanoPipeline, mock_project: MeltanoProject
+) -> None:
+    """Test that existing MELTANO_CLI_LOG_FORMAT is not overridden."""
+    base_env = {"MELTANO_CLI_LOG_FORMAT": "text"}
+
+    result = build_pipeline_env(simple_pipeline, mock_project, base_env=base_env)
+
+    # Should preserve existing log format
+    assert result["MELTANO_CLI_LOG_FORMAT"] == "text"

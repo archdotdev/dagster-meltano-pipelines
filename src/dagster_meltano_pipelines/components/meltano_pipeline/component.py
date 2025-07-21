@@ -155,6 +155,10 @@ def build_pipeline_env(
         **pipeline.env,
     }
 
+    # Set JSON log format as default if not already configured
+    if "MELTANO_CLI_LOG_FORMAT" not in env:
+        env["MELTANO_CLI_LOG_FORMAT"] = "json"
+
     # Add SSH config if provided
     if ssh_config_path:
         env["GIT_SSH_COMMAND"] = f"ssh -F {ssh_config_path}"
