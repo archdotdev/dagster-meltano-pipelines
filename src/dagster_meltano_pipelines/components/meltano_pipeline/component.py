@@ -6,6 +6,7 @@ import tempfile
 import typing as t
 from contextlib import contextmanager
 from dataclasses import dataclass
+from importlib.metadata import version
 
 import dagster as dg
 import orjson
@@ -180,6 +181,13 @@ def _run_meltano_pipeline(
     ]
     if pipeline.state_suffix:
         command.append(f"--state-id-suffix={pipeline.state_suffix}")
+
+    context.add_asset_metadata(
+        {
+            "meltano_version": version("meltano"),
+            "component_version": version("dagster-meltano-pipelines"),
+        }
+    )
 
     process = subprocess.Popen(
         [
