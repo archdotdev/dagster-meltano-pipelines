@@ -202,12 +202,6 @@ wheels = [
 ]
 
 [[package]]
-name = "atomicwrites"
-version = "1.4.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/87/c6/53da25344e3e3a9c01095a89f16dbcda021c609ddb42dd6d7c0528236fb2/atomicwrites-1.4.1.tar.gz", hash = "sha256:81b2c9071a49367a7f770170e5eec8cb66567cfbbc8c73d20ce5ca4a8d71cf11", size = 14227, upload-time = "2022-07-08T18:31:40.459Z" }
-
-[[package]]
 name = "attrs"
 version = "25.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -473,19 +467,6 @@ wheels = [
 ]
 
 [[package]]
-name = "croniter"
-version = "6.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "python-dateutil" },
-    { name = "pytz" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ad/2f/44d1ae153a0e27be56be43465e5cb39b9650c781e001e7864389deb25090/croniter-6.0.0.tar.gz", hash = "sha256:37c504b313956114a983ece2c2b07790b1f1094fe9d81cc94739214748255577", size = 64481, upload-time = "2024-12-17T17:17:47.32Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/07/4b/290b4c3efd6417a8b0c284896de19b1d5855e6dbdb97d2a35e68fa42de85/croniter-6.0.0-py2.py3-none-any.whl", hash = "sha256:2f878c3856f17896979b2a4379ba1f09c83e374931ea15cc835c5dd2eee9b368", size = 25468, upload-time = "2024-12-17T17:17:45.359Z" },
-]
-
-[[package]]
 name = "cryptography"
 version = "45.0.5"
 source = { registry = "https://pypi.org/simple" }
@@ -670,7 +651,7 @@ typing = [
 [package.metadata]
 requires-dist = [
     { name = "dagster", specifier = ">=1.10.19" },
-    { name = "meltano", specifier = ">=3.6" },
+    { name = "meltano", git = "https://github.com/meltano/meltano.git" },
     { name = "orjson", specifier = ">=3.10.18" },
     { name = "pydantic", specifier = ">=2.10.0" },
     { name = "pyyaml", specifier = ">=6.0.2" },
@@ -1289,18 +1270,16 @@ wheels = [
 [[package]]
 name = "meltano"
 version = "3.8.0"
-source = { registry = "https://pypi.org/simple" }
+source = { git = "https://github.com/meltano/meltano.git#100348dc7348a72b2d46a94438c589a047fff0f9" }
 dependencies = [
     { name = "aiodocker" },
     { name = "alembic" },
     { name = "anyio" },
-    { name = "atomicwrites" },
     { name = "backports-strenum", marker = "python_full_version < '3.11'" },
     { name = "check-jsonschema" },
     { name = "click" },
     { name = "click-default-group" },
     { name = "click-didyoumean" },
-    { name = "croniter" },
     { name = "dateparser" },
     { name = "fasteners" },
     { name = "flatten-dict" },
@@ -1321,12 +1300,9 @@ dependencies = [
     { name = "structlog" },
     { name = "typing-extensions" },
     { name = "tzlocal" },
+    { name = "urllib3" },
     { name = "uv" },
     { name = "virtualenv" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/54/0c/c9663bfe6ed4e08b8775be71ee4f26abc52cc9c46fb825616f3d7e2c28ce/meltano-3.8.0.tar.gz", hash = "sha256:4a65dc1a9f0a6b1648842c7539a08d4b143e481f5a1a1ff84e01254436833285", size = 12701501, upload-time = "2025-07-07T16:56:58.728Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c3/b3/dbc978d6f590acd3536a561fdf721cbd034e2dd853068aec48a71f2e5ae9/meltano-3.8.0-py3-none-any.whl", hash = "sha256:9337be27a9b994ce24769931bd843338d45ee70fe2adb7f679547d08eeb0f697", size = 366561, upload-time = "2025-07-07T16:56:55.894Z" },
 ]
 
 [[package]]

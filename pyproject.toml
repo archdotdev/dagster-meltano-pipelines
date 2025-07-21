@@ -83,3 +83,6 @@ commands = [ [ "ruff", "check", "--fix" ], [ "ruff", "format" ] ]
 [tool.tox.env.type]
 dependency_groups = [ "test", "typing" ]
 commands = [ [ "mypy", "--strict", { replace = "posargs", default = [ "src/dagster_meltano_pipelines", "tests" ], extend = true } ] ]
+
+[tool.uv.sources]
+meltano = { git = "https://github.com/meltano/meltano.git" }
