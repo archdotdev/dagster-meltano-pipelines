@@ -206,7 +206,8 @@ def _run_meltano_pipeline(
             else:
                 level = log_data.pop("level")
                 event = log_data.pop("event")
-                context.log.log(level, event, extra={"meltano": log_data})
+                context.add_asset_metadata({"meltano": log_data})
+                context.log.log(level, event)
 
         # Wait for process to complete
         exit_code = process.wait()
