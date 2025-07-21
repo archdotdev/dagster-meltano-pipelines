@@ -155,6 +155,10 @@ def build_pipeline_env(
         **pipeline.env,
     }
 
+    # Set JSON log format as default if not already configured
+    if "MELTANO_CLI_LOG_FORMAT" not in env:
+        env["MELTANO_CLI_LOG_FORMAT"] = "json"
+
     # Add SSH config if provided
     if ssh_config_path:
         env["GIT_SSH_COMMAND"] = f"ssh -F {ssh_config_path}"
@@ -173,7 +177,6 @@ def _run_meltano_pipeline(
         "meltano",
         "run",
         f"--run-id={context.run_id}",
-        "--log-format=json",
     ]
     if pipeline.state_suffix:
         command.append(f"--state-id-suffix={pipeline.state_suffix}")
