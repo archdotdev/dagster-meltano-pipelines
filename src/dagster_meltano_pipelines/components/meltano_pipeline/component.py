@@ -206,7 +206,22 @@ def _run_meltano_pipeline(
             else:
                 level = log_data.pop("level")
                 event = log_data.pop("event")
-                context.log.log(level, event, extra={"meltano": log_data})
+                context.log.log(level, event)
+                if "Extractor failed" in event or "Loader failed" in event or "Mappers failed" in event:
+                    context.add_asset_metadata(
+                        {
+                            "code": log_data.pop("code", None),
+                            "message": log_data.pop("message", None),
+                            "exception": log_data.pop("exception", []),
+                        }
+                    )
+
+                if "Run completed" in event:
+                    context.add_asset_metadata(
+                        {
+                            "duration_seconds": log_data.pop("duration_seconds", None),
+                        }
+                    )
 
         # Wait for process to complete
         exit_code = process.wait()
