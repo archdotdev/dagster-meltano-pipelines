@@ -87,6 +87,8 @@ def setup_ssh_config(
 
             # Create and enter context for each key file
             for i, key_content in enumerate(ssh_private_keys):
+                # Replace literal \n with actual newlines
+                key_content = key_content.replace("\\n", "\n")
                 if not key_content.endswith("\n"):
                     key_content += "\n"
 
