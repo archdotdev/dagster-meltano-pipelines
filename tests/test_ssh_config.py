@@ -208,3 +208,34 @@ def test_setup_ssh_config_file_naming(mock_context: Mock, sample_ssh_keys: t.Lis
         for key_file in key_files:
             key_file_path = os.path.join(temp_dir, key_file)
             assert key_file_path in config_content
+
+
+def test_setup_ssh_config_literal_newline_replacement(mock_context: Mock) -> None:
+    """Test that literal \\n strings are replaced with actual newlines in SSH keys."""
+    # SSH key with literal \n characters instead of actual newlines
+    ssh_key_with_literals = (
+        "-----BEGIN OPENSSH PRIVATE KEY-----\\nb3BlbnNzaC1rZXktdjE=\\n-----END OPENSSH PRIVATE KEY-----"
+    )
+    expected_key_content = (
+        "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjE=\n-----END OPENSSH PRIVATE KEY-----\n"
+    )
+
+    ssh_keys = [ssh_key_with_literals]
+
+    with setup_ssh_config(mock_context, ssh_keys) as ssh_config_path:
+        assert ssh_config_path is not None
+        temp_dir = os.path.dirname(ssh_config_path)
+
+        # Find the key file
+        key_files = [f for f in os.listdir(temp_dir) if "_id_rsa_" in f]
+        assert len(key_files) == 1
+        key_file_path = os.path.join(temp_dir, key_files[0])
+
+        # Verify the literal \n was replaced with actual newlines
+        with open(key_file_path, "r") as f:
+            key_content = f.read()
+        assert key_content == expected_key_content
+
+        # Verify it contains actual newlines, not literal \n
+        assert "\\n" not in key_content
+        assert "\n" in key_content
