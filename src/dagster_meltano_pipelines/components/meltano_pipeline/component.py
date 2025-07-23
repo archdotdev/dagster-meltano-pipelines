@@ -247,11 +247,17 @@ def pipeline_to_dagster_asset(
 ) -> dg.AssetsDefinition:
     extractor_definition = project.plugins["extractors", pipeline.extractor.name]
     loader_definition = project.plugins["loaders", pipeline.loader.name]
+    tags: t.Dict[str, str] = {
+        "extractor": pipeline.extractor.name,
+        "loader": pipeline.loader.name,
+    }
+    if pipeline.tags:
+        tags.update(pipeline.tags)
 
     @dg.asset(
         name=pipeline.id,
         description=pipeline.description or f"{pipeline.extractor.name} → {pipeline.loader.name}",
-        tags=pipeline.tags,
+        tags=tags,
         kinds={"Meltano"},
         metadata={
             "extractor": extractor_definition,
