@@ -1,4 +1,5 @@
 from dagster_meltano_pipelines.components.meltano_pipeline import (
+    DagsterAssetProps,
     MeltanoPipeline,
     MeltanoPipelineComponent,
 )
@@ -19,6 +20,7 @@ from dagster_meltano_pipelines.resources import (
 
 __all__ = [
     "CLIConfig",
+    "DagsterAssetProps",
     "ELTConfig",
     "Extractor",
     "ExtractorConfig",
