@@ -3,6 +3,7 @@ import pytest
 
 from dagster_meltano_pipelines.resources import (
     CLIConfig,
+    ELTConfig,
     Extractor,
     ExtractorConfig,
     MeltanoConfig,
@@ -41,6 +42,7 @@ def meltano_config() -> MeltanoConfig:
         ),
         venv=VenvConfig(backend="virtualenv"),
         cli=CLIConfig(log_level="debug", log_format="json"),
+        elt=ELTConfig(buffer_size=104_857_600),
     )
 
 
@@ -65,4 +67,5 @@ def test_meltano_config_as_env(meltano_config: MeltanoConfig, monkeypatch: pytes
         "MELTANO_VENV_BACKEND": "virtualenv",
         "MELTANO_CLI_LOG_LEVEL": "debug",
         "MELTANO_CLI_LOG_FORMAT": "json",
+        "MELTANO_ELT_BUFFER_SIZE": "104857600",
     }

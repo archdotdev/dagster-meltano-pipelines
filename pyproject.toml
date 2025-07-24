@@ -13,7 +13,7 @@ license-files = [
 requires-python = ">=3.9,<3.13"
 dependencies = [
     "dagster>=1.10.19",
-    "meltano>=3.6,<3.9",
+    "meltano>=3.6",
     "orjson>=3.10.18",
     "pydantic>=2.10.0",
     "pyyaml>=6.0.2",
@@ -25,11 +25,15 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    { include-group = "testing" },
+    { include-group = "lint" },
+    { include-group = "test" },
     { include-group = "typing" },
-    "dagster-dg-cli[local]>=1.10.19",
+    "dagster-dg-cli>=1.10.19",
 ]
-testing = [
+lint = [
+    "ruff>=0.12.3",
+]
+test = [
     "pytest>=8.4",
 ]
 typing = [
@@ -62,7 +66,9 @@ dagster = "dg"
 [tool.tox]
 min_version = "4.22"
 env_list = [
+    "lint",
     "type",
+    "3.13",
     "3.12",
     "3.11",
     "3.10",
@@ -71,9 +77,16 @@ env_list = [
 requires = [ "tox>=4.22", "tox-uv" ]
 
 [tool.tox.env_run_base]
-dependency_groups = [ "testing" ]
+dependency_groups = [ "test" ]
 commands = [ [ "pytest", { replace = "posargs", default = [ "tests" ], extend = true } ] ]
 
+[tool.tox.env.lint]
+dependency_groups = [ "lint" ]
+commands = [ [ "ruff", "check", "--fix" ], [ "ruff", "format" ] ]
+
 [tool.tox.env.type]
-dependency_groups = [ "testing", "typing" ]
+dependency_groups = [ "test", "typing" ]
 commands = [ [ "mypy", "--strict", { replace = "posargs", default = [ "src/dagster_meltano_pipelines", "tests" ], extend = true } ] ]
+
+[tool.uv.sources]
+meltano = { git = "https://github.com/meltano/meltano.git" }

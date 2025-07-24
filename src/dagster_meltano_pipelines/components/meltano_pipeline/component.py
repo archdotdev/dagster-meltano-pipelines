@@ -6,6 +6,7 @@ import tempfile
 import typing as t
 from contextlib import contextmanager
 from dataclasses import dataclass
+from importlib.metadata import version
 
 import dagster as dg
 import orjson
@@ -86,6 +87,8 @@ def setup_ssh_config(
 
             # Create and enter context for each key file
             for i, key_content in enumerate(ssh_private_keys):
+                # Replace literal \n with actual newlines
+                key_content = key_content.replace("\\n", "\n")
                 if not key_content.endswith("\n"):
                     key_content += "\n"
 
@@ -118,6 +121,54 @@ def setup_ssh_config(
             yield ssh_config_file.name
 
 
+def build_pipeline_env(
+    pipeline: "MeltanoPipeline",
+    project: MeltanoProject,
+    ssh_config_path: t.Optional[str] = None,
+    base_env: t.Optional[t.Dict[str, str]] = None,
+) -> t.Dict[str, str]:
+    """Build environment variables for the Meltano pipeline.
+
+    Args:
+        pipeline: The Meltano pipeline configuration
+        project: The Meltano project instance
+        ssh_config_path: Path to SSH config file, if any
+        base_env: Base environment variables (defaults to os.environ)
+
+    Returns:
+        Dictionary of environment variables for the pipeline
+    """
+    if base_env is None:
+        base_env = dict(os.environ)
+    else:
+        base_env = dict(base_env)
+
+    # Prevent MELTANO_PROJECT_ROOT from interfering with configured project location
+    base_env.pop("MELTANO_PROJECT_ROOT", None)
+
+    # Add meltano config if present
+    if pipeline.meltano_config:
+        base_env.update(pipeline.meltano_config.as_env())
+
+    # Build final environment with all pipeline-specific variables
+    env = {
+        **base_env,
+        **pipeline.extractor.as_env(),
+        **pipeline.loader.as_env(),
+        **pipeline.env,
+    }
+
+    # Set JSON log format as default if not already configured
+    if "MELTANO_CLI_LOG_FORMAT" not in env:
+        env["MELTANO_CLI_LOG_FORMAT"] = "json"
+
+    # Add SSH config if provided
+    if ssh_config_path:
+        env["GIT_SSH_COMMAND"] = f"ssh -F {ssh_config_path}"
+
+    return env
+
+
 def _run_meltano_pipeline(
     context: dg.AssetExecutionContext,
     pipeline: "MeltanoPipeline",
@@ -132,6 +183,13 @@ def _run_meltano_pipeline(
     ]
     if pipeline.state_suffix:
         command.append(f"--state-id-suffix={pipeline.state_suffix}")
+
+    context.add_asset_metadata(
+        {
+            "meltano_version": version("meltano"),
+            "component_version": version("dagster-meltano-pipelines"),
+        }
+    )
 
     process = subprocess.Popen(
         [
@@ -158,7 +216,22 @@ def _run_meltano_pipeline(
             else:
                 level = log_data.pop("level")
                 event = log_data.pop("event")
-                context.log.log(level, event, extra={"meltano": log_data})
+                context.log.log(level, event)
+                if "Extractor failed" in event or "Loader failed" in event or "Mappers failed" in event:
+                    context.add_asset_metadata(
+                        {
+                            "code": log_data.pop("code", None),
+                            "message": log_data.pop("message", None),
+                            "exception": log_data.pop("exception", []),
+                        }
+                    )
+
+                if "Run completed" in event:
+                    context.add_asset_metadata(
+                        {
+                            "duration_seconds": log_data.pop("duration_seconds", None),
+                        }
+                    )
 
         # Wait for process to complete
         exit_code = process.wait()
@@ -171,38 +244,45 @@ def pipeline_to_dagster_asset(
     pipeline: "MeltanoPipeline",
     *,
     project: MeltanoProject,
+    props: t.Optional["DagsterAssetProps"] = None,
 ) -> dg.AssetsDefinition:
     extractor_definition = project.plugins["extractors", pipeline.extractor.name]
     loader_definition = project.plugins["loaders", pipeline.loader.name]
+    props = props or DagsterAssetProps()
+    tags: t.Dict[str, str] = {
+        "extractor": pipeline.extractor.name,
+        "loader": pipeline.loader.name,
+    }
+    if props.tags:
+        tags.update(props.tags)
+    if pipeline.tags:
+        tags.update(pipeline.tags)
 
     @dg.asset(
         name=pipeline.id,
         description=pipeline.description or f"{pipeline.extractor.name} → {pipeline.loader.name}",
-        tags=pipeline.tags,
+        tags=tags,
         kinds={"Meltano"},
         metadata={
             "extractor": extractor_definition,
             "loader": loader_definition,
         },
+        key_prefix=props.key_prefix,
     )
     def meltano_job(context: dg.AssetExecutionContext) -> None:
         context.log.info("Running pipeline: %s", pipeline.id)
-        env: t.Dict[str, str] = {**os.environ}
 
-        if pipeline.meltano_config:
-            env |= pipeline.meltano_config.as_env()
-
-        env = {
-            **env,
-            **pipeline.extractor.as_env(),
-            **pipeline.loader.as_env(),
-            **pipeline.env,
-        }
+        # Log warning if MELTANO_PROJECT_ROOT was removed
+        if "MELTANO_PROJECT_ROOT" in os.environ:
+            context.log.warning(
+                "Removing MELTANO_PROJECT_ROOT environment variable (value: %s) to prevent "
+                "interference with configured project directory: %s",
+                os.environ["MELTANO_PROJECT_ROOT"],
+                project.project_dir,
+            )
 
         with setup_ssh_config(context, pipeline.git_ssh_private_keys) as ssh_config_path:
-            if ssh_config_path:
-                env["GIT_SSH_COMMAND"] = f"ssh -F {ssh_config_path}"
-
+            env = build_pipeline_env(pipeline, project, ssh_config_path)
             _run_meltano_pipeline(context, pipeline, project, env)
 
     return meltano_job
@@ -229,6 +309,19 @@ class MeltanoPipeline(BaseModel):
     state_suffix: t.Optional[str] = Field(None, description="Suffix to add to the state backend environment variables")
 
 
+class DagsterAssetProps(BaseModel):
+    """Properties that apply to all assets generated by the component."""
+
+    key_prefix: t.Optional[t.Union[str, t.Sequence[str]]] = Field(
+        default=None,
+        description="Key prefix to use for the assets generated by the component",
+    )
+    tags: t.Optional[t.Dict[str, str]] = Field(
+        default=None,
+        description="Tags to apply to the assets generated by the component",
+    )
+
+
 @dg.scaffold_with(MeltanoProjectScaffolder)
 @dataclass
 class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
@@ -239,6 +332,7 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
 
     project: ResolvedMeltanoProject
     pipelines: t.List[MeltanoPipeline]
+    asset_props: t.Optional[DagsterAssetProps] = None
 
     @override
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
@@ -256,6 +350,7 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
                 pipeline_to_dagster_asset(
                     pipeline,
                     project=self.project,
+                    props=self.asset_props,
                 )
             )
 
