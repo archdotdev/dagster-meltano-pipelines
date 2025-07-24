@@ -192,3 +192,21 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Security and secrets
+*.pem
+*.key
+*.p12
+*.p8
+*.crt
+*.der
+*.cer
+*.pfx
+config.json
+secrets.json
+.secrets
+.env.*
+!.env.example
+!.env.sample
+*.log
+*.secret
