@@ -1,7 +1,7 @@
 import abc
 import collections.abc
 import json
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Sequence
 
 import dagster as dg
 from pydantic import Field
@@ -84,9 +84,13 @@ class MeltanoPlugin(dg.ConfigurableResource["MeltanoPlugin"]):
             if isinstance(value, dg.EnvVar):
                 value = value.get_value()
 
-            # Convert array and object values to JSON strings (only if they are not coming from an environment variable)
-            elif isinstance(value, (collections.abc.Mapping, list, tuple)):
-                value = json.dumps(value)
+            # Convert sequence values to JSON strings after resolving environment variables
+            elif isinstance(value, (list, tuple)):
+                value = json.dumps(_resolve_sequence(value))
+
+            # Convert object values to JSON strings
+            elif isinstance(value, collections.abc.Mapping):
+                value = json.dumps(_resolve_mapping(value))
 
             if value is not None:
                 env[f"{prefix}_{suffix}"] = str(value)
@@ -111,7 +115,7 @@ def _dict_to_env(value: collections.abc.Mapping[str, Any], *, prefix: Optional[s
         if isinstance(v, dg.EnvVar):
             v = v.get_value()
         elif isinstance(v, (list, tuple)):
-            v = json.dumps(v)
+            v = json.dumps(_resolve_sequence(v))
         elif isinstance(v, collections.abc.Mapping):
             env |= _dict_to_env(v, prefix=key)
             continue
@@ -120,6 +124,37 @@ def _dict_to_env(value: collections.abc.Mapping[str, Any], *, prefix: Optional[s
             env[key] = str(v)
 
     return env
+
+
+def _resolve_mapping(value: collections.abc.Mapping[str, Any]) -> dict[str, Any]:
+    """Resolve a mapping to a dictionary of environment variables."""
+    result: dict[str, Any] = {}
+    for k, v in value.items():
+        if isinstance(v, dg.EnvVar):
+            result[k] = v.get_value()
+        elif isinstance(v, (list, tuple)):
+            result[k] = _resolve_sequence(v)
+        elif isinstance(v, collections.abc.Mapping):
+            result[k] = _resolve_mapping(v)
+        else:
+            result[k] = v
+    return result
+
+
+def _resolve_sequence(value: Sequence[Any]) -> list[Any]:
+    """Resolve a sequence to a list."""
+    result: list[Any] = []
+    for item in value:
+        if isinstance(item, dg.EnvVar):
+            result.append(item.get_value())
+        elif isinstance(item, (list, tuple)):
+            result.append(_resolve_sequence(item))
+        elif isinstance(item, collections.abc.Mapping):
+            result.append(_resolve_mapping(item))
+        else:
+            result.append(item)
+
+    return result
 
 
 class AsEnv(dg.PermissiveConfig):

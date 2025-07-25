@@ -22,7 +22,22 @@ def extractor() -> Extractor:
                 "foo": "bar",
                 "baz": "qux",
             },
+            mapping_with_env_vars={
+                "foo": dg.EnvVar("FOO"),
+                "baz": dg.EnvVar("BAZ"),
+            },
             sequence=[1, 2, 3],
+            sequence_with_env_vars=["foo", dg.EnvVar("BAR"), "baz"],
+            nested_env_vars={
+                "foo": [
+                    {
+                        "bar": {
+                            "baz": dg.EnvVar("BAZ"),
+                            "qux": "qux",
+                        },
+                    }
+                ],
+            },
             from_dagster=dg.EnvVar("FROM_DAGSTER"),
             _catalog="catalog.json",
             _select=["foo.*", "baz.*"],
@@ -48,10 +63,16 @@ def meltano_config() -> MeltanoConfig:
 
 def test_plugin_as_env(extractor: Extractor, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FROM_DAGSTER", "from_dagster")
+    monkeypatch.setenv("FOO", "foo")
+    monkeypatch.setenv("BAR", "bar")
+    monkeypatch.setenv("BAZ", "baz")
     assert extractor.as_env() == {
         "TAP_TEST_API_KEY": "s3c3r3t",
         "TAP_TEST_MAPPING": '{"foo": "bar", "baz": "qux"}',
+        "TAP_TEST_MAPPING_WITH_ENV_VARS": '{"foo": "foo", "baz": "baz"}',
         "TAP_TEST_SEQUENCE": "[1, 2, 3]",
+        "TAP_TEST_SEQUENCE_WITH_ENV_VARS": '["foo", "bar", "baz"]',
+        "TAP_TEST_NESTED_ENV_VARS": '{"foo": [{"bar": {"baz": "baz", "qux": "qux"}}]}',
         "TAP_TEST_FROM_DAGSTER": "from_dagster",
         "TAP_TEST__CATALOG": "catalog.json",
         "TAP_TEST__SELECT": '["foo.*", "baz.*"]',
