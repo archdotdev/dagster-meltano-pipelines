@@ -239,3 +239,221 @@ def test_setup_ssh_config_literal_newline_replacement(mock_context: Mock) -> Non
         # Verify it contains actual newlines, not literal \n
         assert "\\n" not in key_content
         assert "\n" in key_content
+
+
+def test_setup_ssh_config_with_env_var(
+    mock_context: Mock, sample_ssh_key: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test SSH config setup with dg.EnvVar containing SSH key."""
+    env_var_name = "TEST_SSH_KEY"
+    monkeypatch.setenv(env_var_name, sample_ssh_key)
+
+    ssh_keys = [dg.EnvVar(env_var_name)]
+
+    with setup_ssh_config(mock_context, ssh_keys) as ssh_config_path:
+        assert ssh_config_path is not None
+        assert os.path.exists(ssh_config_path)
+
+        # Read SSH config content
+        with open(ssh_config_path, "r") as f:
+            config_content = f.read()
+
+        assert "Host *" in config_content
+        assert "IdentityFile" in config_content
+        assert "IdentitiesOnly yes" in config_content
+
+        # Find the key file
+        temp_dir = os.path.dirname(ssh_config_path)
+        key_files = [f for f in os.listdir(temp_dir) if "_id_rsa_" in f]
+        assert len(key_files) == 1
+        key_file_path = os.path.join(temp_dir, key_files[0])
+
+        # Verify key file content matches the environment variable value
+        with open(key_file_path, "r") as f:
+            key_content = f.read()
+        expected_content = sample_ssh_key if sample_ssh_key.endswith("\n") else sample_ssh_key + "\n"
+        assert key_content == expected_content
+
+        # Verify file permissions
+        key_stat = os.stat(key_file_path)
+        assert key_stat.st_mode & 0o777 == 0o600
+
+
+def test_setup_ssh_config_with_empty_env_var(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test SSH config setup with dg.EnvVar that has no value."""
+    env_var_name = "EMPTY_SSH_KEY"
+    # Don't set the environment variable, so it will be empty
+
+    ssh_keys = [dg.EnvVar(env_var_name)]
+
+    with setup_ssh_config(mock_context, ssh_keys) as ssh_config_path:
+        # Should still create SSH config file but with no key files
+        assert ssh_config_path is not None
+        assert os.path.exists(ssh_config_path)
+
+        # SSH config should be empty (no Host entries since no valid keys)
+        with open(ssh_config_path, "r") as f:
+            config_content = f.read()
+        assert config_content.strip() == ""
+
+        # Should have no key files in temp directory
+        temp_dir = os.path.dirname(ssh_config_path)
+        key_files = [f for f in os.listdir(temp_dir) if "_id_rsa_" in f]
+        assert len(key_files) == 0
+
+    # Should still log SSH config setup message even if no keys were valid
+    mock_context.log.info.assert_called_once_with("Setting up SSH configuration for Git authentication")
+
+
+def test_setup_ssh_config_with_mixed_keys(
+    mock_context: Mock, sample_ssh_key: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test SSH config setup with both string keys and dg.EnvVar keys."""
+    env_var_name = "TEST_SSH_KEY_2"
+    env_var_key = "env-var-ssh-key-content"
+    monkeypatch.setenv(env_var_name, env_var_key)
+
+    ssh_keys = [sample_ssh_key, dg.EnvVar(env_var_name)]
+
+    with setup_ssh_config(mock_context, ssh_keys) as ssh_config_path:
+        assert ssh_config_path is not None
+        assert os.path.exists(ssh_config_path)
+
+        # Read SSH config content
+        with open(ssh_config_path, "r") as f:
+            config_content = f.read()
+
+        # Should have 2 Host * entries (one per key)
+        assert config_content.count("Host *") == 2
+        assert config_content.count("IdentityFile") == 2
+
+        # Verify temp directory has 2 key files
+        temp_dir = os.path.dirname(ssh_config_path)
+        key_files = sorted([f for f in os.listdir(temp_dir) if "_id_rsa_" in f])
+        assert len(key_files) == 2
+
+        # Verify first key file (string key)
+        key_file_0 = [f for f in key_files if f.endswith("_id_rsa_0")][0]
+        key_file_0_path = os.path.join(temp_dir, key_file_0)
+        with open(key_file_0_path, "r") as f:
+            key_content_0 = f.read()
+        expected_content_0 = sample_ssh_key if sample_ssh_key.endswith("\n") else sample_ssh_key + "\n"
+        assert key_content_0 == expected_content_0
+
+        # Verify second key file (env var key)
+        key_file_1 = [f for f in key_files if f.endswith("_id_rsa_1")][0]
+        key_file_1_path = os.path.join(temp_dir, key_file_1)
+        with open(key_file_1_path, "r") as f:
+            key_content_1 = f.read()
+        expected_content_1 = env_var_key if env_var_key.endswith("\n") else env_var_key + "\n"
+        assert key_content_1 == expected_content_1
+
+
+def test_setup_ssh_config_with_env_var_literal_newlines(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test SSH config setup with dg.EnvVar containing literal \\n characters."""
+    env_var_name = "TEST_SSH_KEY_WITH_LITERALS"
+    ssh_key_with_literals = (
+        "-----BEGIN OPENSSH PRIVATE KEY-----\\nb3BlbnNzaC1rZXktdjE=\\n-----END OPENSSH PRIVATE KEY-----"
+    )
+    expected_key_content = (
+        "-----BEGIN OPENSSH PRIVATE KEY-----\nb3BlbnNzaC1rZXktdjE=\n-----END OPENSSH PRIVATE KEY-----\n"
+    )
+    monkeypatch.setenv(env_var_name, ssh_key_with_literals)
+
+    ssh_keys = [dg.EnvVar(env_var_name)]
+
+    with setup_ssh_config(mock_context, ssh_keys) as ssh_config_path:
+        assert ssh_config_path is not None
+        temp_dir = os.path.dirname(ssh_config_path)
+
+        # Find the key file
+        key_files = [f for f in os.listdir(temp_dir) if "_id_rsa_" in f]
+        assert len(key_files) == 1
+        key_file_path = os.path.join(temp_dir, key_files[0])
+
+        # Verify the literal \n was replaced with actual newlines
+        with open(key_file_path, "r") as f:
+            key_content = f.read()
+        assert key_content == expected_key_content
+
+        # Verify it contains actual newlines, not literal \n
+        assert "\\n" not in key_content
+        assert "\n" in key_content
+
+
+def test_setup_ssh_config_with_multiple_env_vars(mock_context: Mock, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test SSH config setup with multiple dg.EnvVar keys."""
+    env_var_1 = "TEST_SSH_KEY_1"
+    env_var_2 = "TEST_SSH_KEY_2"
+    key_content_1 = "ssh-key-content-1"
+    key_content_2 = "ssh-key-content-2"
+
+    monkeypatch.setenv(env_var_1, key_content_1)
+    monkeypatch.setenv(env_var_2, key_content_2)
+
+    ssh_keys = [dg.EnvVar(env_var_1), dg.EnvVar(env_var_2)]
+
+    with setup_ssh_config(mock_context, ssh_keys) as ssh_config_path:
+        assert ssh_config_path is not None
+        assert os.path.exists(ssh_config_path)
+
+        # Read SSH config content
+        with open(ssh_config_path, "r") as f:
+            config_content = f.read()
+
+        # Should have 2 Host * entries
+        assert config_content.count("Host *") == 2
+        assert config_content.count("IdentityFile") == 2
+
+        # Verify temp directory has 2 key files
+        temp_dir = os.path.dirname(ssh_config_path)
+        key_files = sorted([f for f in os.listdir(temp_dir) if "_id_rsa_" in f])
+        assert len(key_files) == 2
+
+        # Verify both key files have correct content
+        key_file_0 = [f for f in key_files if f.endswith("_id_rsa_0")][0]
+        key_file_0_path = os.path.join(temp_dir, key_file_0)
+        with open(key_file_0_path, "r") as f:
+            content_0 = f.read()
+        assert content_0 == key_content_1 + "\n"
+
+        key_file_1 = [f for f in key_files if f.endswith("_id_rsa_1")][0]
+        key_file_1_path = os.path.join(temp_dir, key_file_1)
+        with open(key_file_1_path, "r") as f:
+            content_1 = f.read()
+        assert content_1 == key_content_2 + "\n"
+
+
+def test_setup_ssh_config_with_some_empty_env_vars(
+    mock_context: Mock, sample_ssh_key: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test SSH config setup with mix of valid and empty dg.EnvVar keys."""
+    valid_env_var = "VALID_SSH_KEY"
+    empty_env_var = "EMPTY_SSH_KEY"
+
+    monkeypatch.setenv(valid_env_var, sample_ssh_key)
+    # Don't set empty_env_var
+
+    ssh_keys = [dg.EnvVar(valid_env_var), dg.EnvVar(empty_env_var)]
+
+    with setup_ssh_config(mock_context, ssh_keys) as ssh_config_path:
+        assert ssh_config_path is not None
+        assert os.path.exists(ssh_config_path)
+
+        # Should only create 1 key file (for the valid key)
+        temp_dir = os.path.dirname(ssh_config_path)
+        key_files = [f for f in os.listdir(temp_dir) if "_id_rsa_" in f]
+        assert len(key_files) == 1
+
+        # SSH config should only have 1 Host * entry
+        with open(ssh_config_path, "r") as f:
+            config_content = f.read()
+        assert config_content.count("Host *") == 1
+        assert config_content.count("IdentityFile") == 1
+
+        # Verify the valid key file has correct content
+        key_file_path = os.path.join(temp_dir, key_files[0])
+        with open(key_file_path, "r") as f:
+            key_content = f.read()
+        expected_content = sample_ssh_key if sample_ssh_key.endswith("\n") else sample_ssh_key + "\n"
+        assert key_content == expected_content
