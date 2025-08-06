@@ -198,16 +198,15 @@ def _run_meltano_pipeline(
             pipeline.loader.name,
         ],
         stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
+        stderr=subprocess.PIPE,
         cwd=project.project_dir,
         env=env,
         text=False,
-        bufsize=1,
     )
 
     # Stream logs in real time
-    if process.stdout is not None:
-        for line in iter(process.stdout.readline, b""):
+    if process.stderr is not None:
+        for line in iter(process.stderr.readline, b""):
             try:
                 log_data = orjson.loads(line)
             except orjson.JSONDecodeError:
