@@ -178,28 +178,7 @@ def _run_meltano_pipeline(
     flags: "MeltanoRunFlags",
 ) -> None:
     """Execute the Meltano pipeline."""
-    command = ["meltano"]
-
-    if flags.log_level:
-        command.append(f"--log-level={flags.log_level}")
-
-    command.extend(
-        [
-            "run",
-            f"--run-id={context.run_id}",
-        ]
-    )
-    if pipeline.state_suffix:
-        command.append(f"--state-id-suffix={pipeline.state_suffix}")
-
-    if flags.full_refresh:
-        command.append("--full-refresh")
-
-    if flags.refresh_catalog:
-        command.append("--refresh-catalog")
-
-    if flags.state_strategy != "auto":
-        command.append(f"--state-strategy={flags.state_strategy}")
+    command = flags.get_command(run_id=context.run_id, state_suffix=pipeline.state_suffix)
 
     context.add_asset_metadata(
         {
@@ -318,7 +297,43 @@ class MeltanoRunFlags(dg.ConfigurableResource):  # type: ignore[type-arg]
     state_strategy: t.Literal["auto", "merge", "overwrite"] = "auto"
 
     #: Log level for Meltano CLI
-    log_level: t.Optional[t.Literal["debug", "info", "warning", "error", "critical"]] = None
+    log_level: t.Optional[str] = None
+
+    def get_command(self, *, run_id: str, state_suffix: t.Optional[str] = None) -> t.List[str]:
+        """Get the command to run Meltano with the flags.
+
+        Args:
+            run_id: The run ID to pass to Meltano
+            state_suffix: Optional state suffix for the pipeline
+
+        Returns:
+            List of command parts for running Meltano
+        """
+        command = ["meltano"]
+
+        if self.log_level:
+            command.append(f"--log-level={self.log_level}")
+
+        command.extend(
+            [
+                "run",
+                f"--run-id={run_id}",
+            ]
+        )
+
+        if state_suffix:
+            command.append(f"--state-id-suffix={state_suffix}")
+
+        if self.full_refresh:
+            command.append("--full-refresh")
+
+        if self.refresh_catalog:
+            command.append("--refresh-catalog")
+
+        if self.state_strategy != "auto":
+            command.append(f"--state-strategy={self.state_strategy}")
+
+        return command
 
 
 class MeltanoPipeline(BaseModel):
