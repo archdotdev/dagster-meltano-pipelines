@@ -178,11 +178,17 @@ def _run_meltano_pipeline(
     flags: "MeltanoRunFlags",
 ) -> None:
     """Execute the Meltano pipeline."""
-    command = [
-        "meltano",
-        "run",
-        f"--run-id={context.run_id}",
-    ]
+    command = ["meltano"]
+
+    if flags.log_level:
+        command.append(f"--log-level={flags.log_level}")
+
+    command.extend(
+        [
+            "run",
+            f"--run-id={context.run_id}",
+        ]
+    )
     if pipeline.state_suffix:
         command.append(f"--state-id-suffix={pipeline.state_suffix}")
 
@@ -310,6 +316,9 @@ class MeltanoRunFlags(dg.ConfigurableResource):  # type: ignore[type-arg]
 
     #: How to handle state updates
     state_strategy: t.Literal["auto", "merge", "overwrite"] = "auto"
+
+    #: Log level for Meltano CLI
+    log_level: t.Optional[t.Literal["debug", "info", "warning", "error", "critical"]] = None
 
 
 class MeltanoPipeline(BaseModel):
