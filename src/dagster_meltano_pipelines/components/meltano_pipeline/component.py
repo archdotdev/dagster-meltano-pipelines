@@ -175,7 +175,7 @@ def _run_meltano_pipeline(
     project: MeltanoProject,
     env: t.Dict[str, str],
     *,
-    flags: "MeltanoRunFlags",
+    flags: "MeltanoRunConfig",
 ) -> None:
     """Execute the Meltano pipeline."""
     command = flags.get_command(run_id=context.run_id, state_suffix=pipeline.state_suffix)
@@ -265,7 +265,7 @@ def pipeline_to_dagster_asset(
         },
         key_prefix=props.key_prefix,
     )
-    def meltano_job(context: dg.AssetExecutionContext, flags: MeltanoRunFlags) -> None:
+    def meltano_job(context: dg.AssetExecutionContext, config: MeltanoRunConfig) -> None:
         context.log.info("Running pipeline: %s", pipeline.id)
 
         # Log warning if MELTANO_PROJECT_ROOT was removed
@@ -279,12 +279,12 @@ def pipeline_to_dagster_asset(
 
         with setup_ssh_config(context, pipeline.git_ssh_private_keys) as ssh_config_path:
             env = build_pipeline_env(pipeline, project, ssh_config_path)
-            _run_meltano_pipeline(context, pipeline, project, env, flags=flags)
+            _run_meltano_pipeline(context, pipeline, project, env, flags=config)
 
     return meltano_job
 
 
-class MeltanoRunFlags(dg.ConfigurableResource):  # type: ignore[type-arg]
+class MeltanoRunConfig(dg.Config):
     """Flags to pass to the Meltano pipeline."""
 
     #: Whether to execute the pipeline ignoring any existing state
