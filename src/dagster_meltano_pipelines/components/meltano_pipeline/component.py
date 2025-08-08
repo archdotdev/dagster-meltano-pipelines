@@ -174,6 +174,8 @@ def _run_meltano_pipeline(
     pipeline: "MeltanoPipeline",
     project: MeltanoProject,
     env: t.Dict[str, str],
+    *,
+    flags: "MeltanoRunFlags",
 ) -> None:
     """Execute the Meltano pipeline."""
     command = [
@@ -183,6 +185,15 @@ def _run_meltano_pipeline(
     ]
     if pipeline.state_suffix:
         command.append(f"--state-id-suffix={pipeline.state_suffix}")
+
+    if flags.full_refresh:
+        command.append("--full-refresh")
+
+    if flags.refresh_catalog:
+        command.append("--refresh-catalog")
+
+    if flags.state_strategy != "auto":
+        command.append(f"--state-strategy={flags.state_strategy}")
 
     context.add_asset_metadata(
         {
@@ -269,7 +280,7 @@ def pipeline_to_dagster_asset(
         },
         key_prefix=props.key_prefix,
     )
-    def meltano_job(context: dg.AssetExecutionContext) -> None:
+    def meltano_job(context: dg.AssetExecutionContext, flags: MeltanoRunFlags) -> None:
         context.log.info("Running pipeline: %s", pipeline.id)
 
         # Log warning if MELTANO_PROJECT_ROOT was removed
@@ -283,9 +294,22 @@ def pipeline_to_dagster_asset(
 
         with setup_ssh_config(context, pipeline.git_ssh_private_keys) as ssh_config_path:
             env = build_pipeline_env(pipeline, project, ssh_config_path)
-            _run_meltano_pipeline(context, pipeline, project, env)
+            _run_meltano_pipeline(context, pipeline, project, env, flags=flags)
 
     return meltano_job
+
+
+class MeltanoRunFlags(dg.ConfigurableResource):  # type: ignore[type-arg]
+    """Flags to pass to the Meltano pipeline."""
+
+    #: Whether to execute the pipeline ignoring any existing state
+    full_refresh: bool = False
+
+    #: Whether to refresh the catalog before executing the pipeline
+    refresh_catalog: bool = False
+
+    #: How to handle state updates
+    state_strategy: t.Literal["auto", "merge", "overwrite"] = "auto"
 
 
 class MeltanoPipeline(BaseModel):
