@@ -174,15 +174,11 @@ def _run_meltano_pipeline(
     pipeline: "MeltanoPipeline",
     project: MeltanoProject,
     env: t.Dict[str, str],
+    *,
+    flags: "MeltanoRunFlags",
 ) -> None:
     """Execute the Meltano pipeline."""
-    command = [
-        "meltano",
-        "run",
-        f"--run-id={context.run_id}",
-    ]
-    if pipeline.state_suffix:
-        command.append(f"--state-id-suffix={pipeline.state_suffix}")
+    command = flags.get_command(run_id=context.run_id, state_suffix=pipeline.state_suffix)
 
     context.add_asset_metadata(
         {
@@ -269,7 +265,7 @@ def pipeline_to_dagster_asset(
         },
         key_prefix=props.key_prefix,
     )
-    def meltano_job(context: dg.AssetExecutionContext) -> None:
+    def meltano_job(context: dg.AssetExecutionContext, flags: MeltanoRunFlags) -> None:
         context.log.info("Running pipeline: %s", pipeline.id)
 
         # Log warning if MELTANO_PROJECT_ROOT was removed
@@ -283,9 +279,61 @@ def pipeline_to_dagster_asset(
 
         with setup_ssh_config(context, pipeline.git_ssh_private_keys) as ssh_config_path:
             env = build_pipeline_env(pipeline, project, ssh_config_path)
-            _run_meltano_pipeline(context, pipeline, project, env)
+            _run_meltano_pipeline(context, pipeline, project, env, flags=flags)
 
     return meltano_job
+
+
+class MeltanoRunFlags(dg.ConfigurableResource):  # type: ignore[type-arg]
+    """Flags to pass to the Meltano pipeline."""
+
+    #: Whether to execute the pipeline ignoring any existing state
+    full_refresh: bool = False
+
+    #: Whether to refresh the catalog before executing the pipeline
+    refresh_catalog: bool = False
+
+    #: How to handle state updates
+    state_strategy: t.Literal["auto", "merge", "overwrite"] = "auto"
+
+    #: Log level for Meltano CLI
+    log_level: t.Optional[str] = None
+
+    def get_command(self, *, run_id: str, state_suffix: t.Optional[str] = None) -> t.List[str]:
+        """Get the command to run Meltano with the flags.
+
+        Args:
+            run_id: The run ID to pass to Meltano
+            state_suffix: Optional state suffix for the pipeline
+
+        Returns:
+            List of command parts for running Meltano
+        """
+        command = ["meltano"]
+
+        if self.log_level:
+            command.append(f"--log-level={self.log_level}")
+
+        command.extend(
+            [
+                "run",
+                f"--run-id={run_id}",
+            ]
+        )
+
+        if state_suffix:
+            command.append(f"--state-id-suffix={state_suffix}")
+
+        if self.full_refresh:
+            command.append("--full-refresh")
+
+        if self.refresh_catalog:
+            command.append("--refresh-catalog")
+
+        if self.state_strategy != "auto":
+            command.append(f"--state-strategy={self.state_strategy}")
+
+        return command
 
 
 class MeltanoPipeline(BaseModel):
