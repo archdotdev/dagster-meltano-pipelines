@@ -66,7 +66,7 @@ ResolvedMeltanoProject: TypeAlias = t.Annotated[
 @contextmanager
 def setup_ssh_config(
     context: dg.AssetExecutionContext,
-    ssh_private_keys: t.List[str],
+    ssh_private_keys: t.Sequence[t.Union[str, dg.EnvVar]],
 ) -> t.Generator[t.Optional[str], None, None]:
     """Create temporary SSH config and key files for Git authentication.
 
@@ -87,6 +87,13 @@ def setup_ssh_config(
 
             # Create and enter context for each key file
             for i, key_content in enumerate(ssh_private_keys):
+                # Resolve EnvVar if needed
+                if isinstance(key_content, dg.EnvVar):
+                    resolved_key = key_content.get_value()
+                    if resolved_key is None:
+                        raise ValueError(f"Environment variable for SSH key at index {i} is not set")
+                    key_content = resolved_key
+
                 # Replace literal \n with actual newlines
                 key_content = key_content.replace("\\n", "\n")
                 if not key_content.endswith("\n"):
