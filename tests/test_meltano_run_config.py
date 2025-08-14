@@ -128,3 +128,14 @@ class TestMeltanoRunConfig:
             "run",
             "--run-id=test-run-123",
         ]
+
+    def test_select_filter_defaults_to_none(self) -> None:
+        """Test that select_filter defaults to None."""
+        flags = MeltanoRunConfig()
+        assert flags.select_filter is None
+
+    def test_select_filter_can_be_set(self) -> None:
+        """Test that select_filter can be set to a list of strings."""
+        select_filter = ["table1", "table2.column1", "table3.*"]
+        flags = MeltanoRunConfig(select_filter=select_filter)
+        assert flags.select_filter == select_filter

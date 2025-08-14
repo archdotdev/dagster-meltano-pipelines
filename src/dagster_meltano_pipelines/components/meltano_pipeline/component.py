@@ -1,4 +1,5 @@
 import contextlib
+import json
 import os
 import subprocess
 import sys
@@ -127,6 +128,7 @@ def build_pipeline_env(
     project: MeltanoProject,
     ssh_config_path: t.Optional[str] = None,
     base_env: t.Optional[t.Dict[str, str]] = None,
+    flags: t.Optional["MeltanoRunConfig"] = None,
 ) -> t.Dict[str, str]:
     """Build environment variables for the Meltano pipeline.
 
@@ -166,6 +168,10 @@ def build_pipeline_env(
     # Add SSH config if provided
     if ssh_config_path:
         env["GIT_SSH_COMMAND"] = f"ssh -F {ssh_config_path}"
+
+    # Add select_filter if provided in runtime config
+    if flags and flags.select_filter is not None:
+        env["MELTANO_EXTRACT__SELECT_FILTER"] = json.dumps(flags.select_filter)
 
     return env
 
@@ -296,7 +302,7 @@ def pipeline_to_dagster_asset(
             )
 
         with setup_ssh_config(context, pipeline.git_ssh_private_keys) as ssh_config_path:
-            env = build_pipeline_env(pipeline, project, ssh_config_path)
+            env = build_pipeline_env(pipeline, project, ssh_config_path, flags=config)
             _run_meltano_pipeline(context, pipeline, project, env, flags=config)
 
     return meltano_job
@@ -316,6 +322,9 @@ class MeltanoRunConfig(dg.Config):
 
     #: Log level for Meltano CLI
     log_level: t.Optional[str] = None
+
+    #: Stream selection filter
+    select_filter: t.Optional[t.List[str]] = None
 
     def get_command(self, *, run_id: str, state_suffix: t.Optional[str] = None) -> t.List[str]:
         """Get the command to run Meltano with the flags.
