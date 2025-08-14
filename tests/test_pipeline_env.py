@@ -4,6 +4,7 @@ import pytest
 
 from dagster_meltano_pipelines.components.meltano_pipeline.component import (
     MeltanoPipeline,
+    MeltanoRunConfig,
     build_pipeline_env,
 )
 from dagster_meltano_pipelines.project import MeltanoProject
@@ -289,3 +290,80 @@ def test_build_pipeline_env_respects_existing_log_format(
 
     # Should preserve existing log format
     assert result["MELTANO_CLI_LOG_FORMAT"] == "text"
+
+
+def test_build_pipeline_env_with_select_filter(simple_pipeline: MeltanoPipeline, mock_project: MeltanoProject) -> None:
+    """Test environment building with select_filter in runtime config."""
+    select_filter = ["table1", "table2.column1", "table3.*"]
+    flags = MeltanoRunConfig(select_filter=select_filter)
+    base_env = {"BASE_VAR": "base_value"}
+
+    result = build_pipeline_env(simple_pipeline, mock_project, base_env=base_env, flags=flags)
+
+    # Should contain select_filter as JSON
+    import json
+
+    assert result["MELTANO_EXTRACT__SELECT_FILTER"] == json.dumps(select_filter)
+
+    # Should contain other variables
+    assert result["BASE_VAR"] == "base_value"
+    assert result["TAP_TEST_API_KEY"] == "secret123"
+    assert result["CUSTOM_VAR"] == "custom_value"
+
+
+def test_build_pipeline_env_without_select_filter(
+    simple_pipeline: MeltanoPipeline, mock_project: MeltanoProject
+) -> None:
+    """Test environment building without select_filter in runtime config."""
+    flags = MeltanoRunConfig()
+    base_env = {"BASE_VAR": "base_value"}
+
+    result = build_pipeline_env(simple_pipeline, mock_project, base_env=base_env, flags=flags)
+
+    # Should not contain MELTANO_EXTRACT__SELECT_FILTER
+    assert "MELTANO_EXTRACT__SELECT_FILTER" not in result
+
+    # Should contain other variables
+    assert result["BASE_VAR"] == "base_value"
+    assert result["TAP_TEST_API_KEY"] == "secret123"
+    assert result["CUSTOM_VAR"] == "custom_value"
+
+
+def test_build_pipeline_env_with_none_select_filter(
+    simple_pipeline: MeltanoPipeline, mock_project: MeltanoProject
+) -> None:
+    """Test environment building with select_filter explicitly set to None."""
+    flags = MeltanoRunConfig(select_filter=None)
+    base_env = {"BASE_VAR": "base_value"}
+
+    result = build_pipeline_env(simple_pipeline, mock_project, base_env=base_env, flags=flags)
+
+    # Should not contain MELTANO_EXTRACT__SELECT_FILTER
+    assert "MELTANO_EXTRACT__SELECT_FILTER" not in result
+
+    # Should contain other variables
+    assert result["BASE_VAR"] == "base_value"
+    assert result["TAP_TEST_API_KEY"] == "secret123"
+    assert result["CUSTOM_VAR"] == "custom_value"
+
+
+def test_build_pipeline_env_with_empty_select_filter(
+    simple_pipeline: MeltanoPipeline, mock_project: MeltanoProject
+) -> None:
+    """Test environment building with empty select_filter list."""
+    select_filter: list[str] = []
+    flags = MeltanoRunConfig(select_filter=select_filter)
+    base_env = {"BASE_VAR": "base_value"}
+
+    result = build_pipeline_env(simple_pipeline, mock_project, base_env=base_env, flags=flags)
+
+    # Should contain select_filter as JSON even if empty
+    import json
+
+    assert result["MELTANO_EXTRACT__SELECT_FILTER"] == json.dumps(select_filter)
+    assert result["MELTANO_EXTRACT__SELECT_FILTER"] == "[]"
+
+    # Should contain other variables
+    assert result["BASE_VAR"] == "base_value"
+    assert result["TAP_TEST_API_KEY"] == "secret123"
+    assert result["CUSTOM_VAR"] == "custom_value"
