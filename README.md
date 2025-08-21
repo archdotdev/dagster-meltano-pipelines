@@ -58,9 +58,28 @@ pipelines:
   my_pipeline:
     extractor:
       name: tap-csv
+      git_ssh_private_key: "{{ env_var('EXTRACTOR_SSH_KEY') }}"  # SSH key for extractor Git authentication
     loader:
       name: target-jsonl
+      git_ssh_private_key: "{{ env_var('LOADER_SSH_KEY') }}"  # SSH key for loader Git authentication
     description: "Extract data from CSV and load to JSONL"
     tags:
       environment: "dev"
 ```
+
+#### Git SSH Authentication
+
+For Git repositories that require SSH authentication, you can configure an SSH private key on individual plugins (extractors and loaders):
+
+```yaml
+pipelines:
+  my_pipeline:
+    extractor:
+      name: tap-github
+      git_ssh_private_key: "{{ env_var('GITHUB_SSH_KEY') }}"
+    loader:
+      name: target-postgres
+      # No SSH key needed for this loader
+```
+
+**Note:** Pipeline-level `git_ssh_private_keys` configuration is deprecated. Configure `git_ssh_private_key` on individual extractor and loader plugins instead.
