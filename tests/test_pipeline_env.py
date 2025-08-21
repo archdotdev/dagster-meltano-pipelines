@@ -36,6 +36,7 @@ def simple_extractor() -> Extractor:
             api_key="secret123",
             base_url="https://api.test.com",
         ),
+        git_ssh_private_key=None,
     )
 
 
@@ -49,6 +50,7 @@ def simple_loader() -> Loader:
             port=5432,
             database="testdb",
         ),
+        git_ssh_private_key=None,
     )
 
 
