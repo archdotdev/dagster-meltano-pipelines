@@ -60,7 +60,9 @@ def test_get_all_ssh_keys_from_plugins_only(extractor_with_ssh: Extractor, loade
         id="test-pipeline",
         extractor=extractor_with_ssh,
         loader=loader_with_ssh,
-        git_ssh_private_keys=[],  # No deprecated keys
+        git_ssh_private_keys=[],
+        meltano_config=None,
+        state_suffix=None,  # No deprecated keys
     )
 
     ssh_keys = get_all_ssh_keys(pipeline)
@@ -76,6 +78,8 @@ def test_get_all_ssh_keys_mixed_plugins(extractor_with_ssh: Extractor, loader_no
         extractor=extractor_with_ssh,
         loader=loader_no_ssh,
         git_ssh_private_keys=[],
+        meltano_config=None,
+        state_suffix=None,
     )
 
     ssh_keys = get_all_ssh_keys(pipeline)
@@ -91,6 +95,8 @@ def test_get_all_ssh_keys_loader_only(extractor_no_ssh: Extractor, loader_with_s
         extractor=extractor_no_ssh,
         loader=loader_with_ssh,
         git_ssh_private_keys=[],
+        meltano_config=None,
+        state_suffix=None,
     )
 
     ssh_keys = get_all_ssh_keys(pipeline)
@@ -106,6 +112,8 @@ def test_get_all_ssh_keys_no_plugins_have_keys(extractor_no_ssh: Extractor, load
         extractor=extractor_no_ssh,
         loader=loader_no_ssh,
         git_ssh_private_keys=[],
+        meltano_config=None,
+        state_suffix=None,
     )
 
     ssh_keys = get_all_ssh_keys(pipeline)
@@ -121,6 +129,8 @@ def test_get_all_ssh_keys_deprecated_pipeline_keys_only(extractor_no_ssh: Extrac
         extractor=extractor_no_ssh,
         loader=loader_no_ssh,
         git_ssh_private_keys=["deprecated-key-1", "deprecated-key-2"],
+        meltano_config=None,
+        state_suffix=None,
     )
 
     # Test that deprecation warning is raised
@@ -145,6 +155,8 @@ def test_get_all_ssh_keys_mixed_new_and_deprecated(extractor_with_ssh: Extractor
         extractor=extractor_with_ssh,
         loader=loader_with_ssh,
         git_ssh_private_keys=["deprecated-key-1"],
+        meltano_config=None,
+        state_suffix=None,
     )
 
     # Test that deprecation warning is raised
@@ -167,6 +179,8 @@ def test_get_all_ssh_keys_deprecation_warning_message(extractor_no_ssh: Extracto
         extractor=extractor_no_ssh,
         loader=loader_no_ssh,
         git_ssh_private_keys=["deprecated-key"],
+        meltano_config=None,
+        state_suffix=None,
     )
 
     with warnings.catch_warnings(record=True) as w:
@@ -188,7 +202,9 @@ def test_get_all_ssh_keys_no_warning_when_no_deprecated_keys(
         id="test-pipeline",
         extractor=extractor_with_ssh,
         loader=loader_with_ssh,
-        git_ssh_private_keys=[],  # No deprecated keys
+        git_ssh_private_keys=[],
+        meltano_config=None,
+        state_suffix=None,  # No deprecated keys
     )
 
     with warnings.catch_warnings(record=True) as w:
@@ -210,7 +226,9 @@ def test_get_all_ssh_keys_empty_deprecated_list_no_warning(
         id="test-pipeline",
         extractor=extractor_with_ssh,
         loader=loader_with_ssh,
-        git_ssh_private_keys=[],  # Empty deprecated list
+        git_ssh_private_keys=[],
+        meltano_config=None,
+        state_suffix=None,  # Empty deprecated list
     )
 
     with warnings.catch_warnings(record=True) as w:
