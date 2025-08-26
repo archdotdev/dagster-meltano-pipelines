@@ -170,7 +170,8 @@ def build_pipeline_env(
 
     # Add select_filter if provided in runtime config
     if flags and flags.select_filter is not None:
-        env["MELTANO_EXTRACT__SELECT_FILTER"] = json.dumps(flags.select_filter)
+        extractor_name = pipeline.extractor.name.upper().replace("-", "_")
+        env[f"{extractor_name}__SELECT_FILTER"] = json.dumps(flags.select_filter)
 
     return env
 
