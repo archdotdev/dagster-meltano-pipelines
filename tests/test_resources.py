@@ -42,6 +42,7 @@ def extractor() -> Extractor:
             _catalog="catalog.json",
             _select=["foo.*", "baz.*"],
         ),
+        git_ssh_private_key="test-ssh-key",
     )
 
 

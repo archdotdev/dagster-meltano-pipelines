@@ -64,6 +64,38 @@ ResolvedMeltanoProject: TypeAlias = t.Annotated[
 ]
 
 
+def get_all_ssh_keys(pipeline: "MeltanoPipeline") -> t.List[str]:
+    """Collect SSH keys from all sources with deprecation warning.
+
+    Args:
+        pipeline: The Meltano pipeline configuration
+
+    Returns:
+        List of SSH private key contents
+    """
+    ssh_keys = []
+
+    # Collect keys from plugins (new approach)
+    if pipeline.extractor.git_ssh_private_key:
+        ssh_keys.append(pipeline.extractor.git_ssh_private_key)
+    if pipeline.loader.git_ssh_private_key:
+        ssh_keys.append(pipeline.loader.git_ssh_private_key)
+
+    # Handle deprecated pipeline-level keys
+    if pipeline.git_ssh_private_keys:
+        import warnings
+
+        warnings.warn(
+            "Pipeline-level git_ssh_private_keys is deprecated. "
+            "Configure git_ssh_private_key on individual extractor and loader plugins instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        ssh_keys.extend(pipeline.git_ssh_private_keys)
+
+    return ssh_keys
+
+
 @contextmanager
 def setup_ssh_config(
     context: dg.AssetExecutionContext,
@@ -284,7 +316,7 @@ def pipeline_to_dagster_asset(
                 project.project_dir,
             )
 
-        with setup_ssh_config(context, pipeline.git_ssh_private_keys) as ssh_config_path:
+        with setup_ssh_config(context, get_all_ssh_keys(pipeline)) as ssh_config_path:
             env = build_pipeline_env(pipeline, project, ssh_config_path, flags=config)
             _run_meltano_pipeline(context, pipeline, project, env, flags=config)
 
@@ -361,7 +393,8 @@ class MeltanoPipeline(BaseModel):
     )
     git_ssh_private_keys: t.List[str] = Field(
         default_factory=list,
-        description="List of SSH private key contents for Git authentication",
+        description="(DEPRECATED) List of SSH private key contents for Git authentication. "
+        "Use git_ssh_private_key on individual extractor and loader plugins instead.",
     )
 
     state_suffix: t.Optional[str] = Field(None, description="Suffix to add to the state backend environment variables")
