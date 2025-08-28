@@ -68,6 +68,10 @@ class MeltanoPlugin(dg.ConfigurableResource["MeltanoPlugin"]):
 
     name: str = Field(description="The Meltano plugin name")
     config: Optional[MeltanoPluginConfig] = Field(description="The Meltano plugin configuration")
+    git_ssh_private_key: Optional[str] = Field(
+        default=None,
+        description="SSH private key content for Git authentication",
+    )
 
     def as_env(self) -> Dict[str, str]:
         """Convert the plugin configuration to a dictionary of environment variables."""

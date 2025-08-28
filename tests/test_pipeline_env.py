@@ -36,6 +36,7 @@ def simple_extractor() -> Extractor:
             api_key="secret123",
             base_url="https://api.test.com",
         ),
+        git_ssh_private_key=None,
     )
 
 
@@ -49,6 +50,7 @@ def simple_loader() -> Loader:
             port=5432,
             database="testdb",
         ),
+        git_ssh_private_key=None,
     )
 
 
@@ -303,7 +305,7 @@ def test_build_pipeline_env_with_select_filter(simple_pipeline: MeltanoPipeline,
     # Should contain select_filter as JSON
     import json
 
-    assert result["MELTANO_EXTRACT__SELECT_FILTER"] == json.dumps(select_filter)
+    assert result["TAP_TEST__SELECT_FILTER"] == json.dumps(select_filter)
 
     # Should contain other variables
     assert result["BASE_VAR"] == "base_value"
@@ -320,8 +322,8 @@ def test_build_pipeline_env_without_select_filter(
 
     result = build_pipeline_env(simple_pipeline, mock_project, base_env=base_env, flags=flags)
 
-    # Should not contain MELTANO_EXTRACT__SELECT_FILTER
-    assert "MELTANO_EXTRACT__SELECT_FILTER" not in result
+    # Should not contain TAP_TEST__SELECT_FILTER
+    assert "TAP_TEST__SELECT_FILTER" not in result
 
     # Should contain other variables
     assert result["BASE_VAR"] == "base_value"
@@ -338,8 +340,8 @@ def test_build_pipeline_env_with_none_select_filter(
 
     result = build_pipeline_env(simple_pipeline, mock_project, base_env=base_env, flags=flags)
 
-    # Should not contain MELTANO_EXTRACT__SELECT_FILTER
-    assert "MELTANO_EXTRACT__SELECT_FILTER" not in result
+    # Should not contain TAP_TEST__SELECT_FILTER
+    assert "TAP_TEST__SELECT_FILTER" not in result
 
     # Should contain other variables
     assert result["BASE_VAR"] == "base_value"
@@ -360,8 +362,8 @@ def test_build_pipeline_env_with_empty_select_filter(
     # Should contain select_filter as JSON even if empty
     import json
 
-    assert result["MELTANO_EXTRACT__SELECT_FILTER"] == json.dumps(select_filter)
-    assert result["MELTANO_EXTRACT__SELECT_FILTER"] == "[]"
+    assert result["TAP_TEST__SELECT_FILTER"] == json.dumps(select_filter)
+    assert result["TAP_TEST__SELECT_FILTER"] == "[]"
 
     # Should contain other variables
     assert result["BASE_VAR"] == "base_value"
