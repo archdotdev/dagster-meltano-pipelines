@@ -14,6 +14,7 @@ import orjson
 from dagster.components.resolved.model import Resolver
 from pydantic import BaseModel, Field
 
+from dagster_meltano_pipelines.errors import DagsterMeltanoPipelineError
 from dagster_meltano_pipelines.project import MeltanoProject
 from dagster_meltano_pipelines.resources import Extractor, Loader, MeltanoConfig
 
@@ -240,6 +241,9 @@ def _run_meltano_pipeline(
         bufsize=1,
     )
 
+    # Collect error logs for better exception context
+    error_logs = []
+
     # Stream logs in real time
     if process.stdout is not None:
         for line in iter(process.stdout.readline, b""):
@@ -247,11 +251,21 @@ def _run_meltano_pipeline(
                 log_data = orjson.loads(line)
             except orjson.JSONDecodeError:
                 # If it's not valid JSON, log as raw text
-                context.log.info(line.decode("utf-8").strip())
+                decoded_line = line.decode("utf-8").strip()
+                context.log.info(decoded_line)
+                # Collect non-JSON error output as well
+                if decoded_line.lower().find("error") != -1:
+                    error_logs.append(decoded_line)
             else:
                 level = log_data.pop("level")
                 event = log_data.pop("event")
                 context.log.log(level, event)
+
+                # Collect error-level logs for exception context
+                if level == "ERROR":
+                    error_context = {"level": level, "event": event, **log_data}
+                    error_logs.append(str(error_context))
+
                 if "Extractor failed" in event or "Loader failed" in event or "Mappers failed" in event:
                     context.add_asset_metadata(
                         {
@@ -272,7 +286,11 @@ def _run_meltano_pipeline(
         exit_code = process.wait()
 
         if exit_code != 0:
-            raise RuntimeError(f"Meltano job failed with exit code {exit_code}")
+            raise DagsterMeltanoPipelineError(
+                "Meltano job failed",
+                exit_code=exit_code,
+                error_logs=error_logs,
+            )
 
 
 def pipeline_to_dagster_asset(
