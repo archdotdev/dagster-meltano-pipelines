@@ -287,14 +287,8 @@ def _run_meltano_pipeline(
         if exit_code != 0:
             metadata: t.Dict[str, t.Any] = {
                 "exit_code": exit_code,
-                "error_log_count": len(error_logs),
+                "error_logs": error_logs,
             }
-
-            if error_logs:
-                # Store structured error logs as JSON for better parsing
-                import json
-
-                metadata["last_5_error_logs_json"] = json.dumps(error_logs[-5:], indent=2)
 
             raise dg.Failure(
                 description=f"Meltano job failed with exit code {exit_code}",
