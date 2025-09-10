@@ -261,7 +261,7 @@ def _run_meltano_pipeline(
                 context.log.log(level, event)
 
                 # Collect error-level logs for exception context
-                if level == "ERROR":
+                if level == "error":
                     error_context = {"level": level, "event": event, **log_data}
                     error_logs.append(error_context)
 
