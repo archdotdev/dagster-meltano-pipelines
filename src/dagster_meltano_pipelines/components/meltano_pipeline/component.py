@@ -240,8 +240,8 @@ def _run_meltano_pipeline(
         bufsize=1,
     )
 
-    # Collect error logs for better exception context
-    error_logs = []
+    # Collect error logs for better exception context (mixed strings and dicts)
+    error_logs: t.List[t.Union[str, t.Dict[str, t.Any]]] = []
 
     # Stream logs in real time
     if process.stdout is not None:
@@ -263,7 +263,7 @@ def _run_meltano_pipeline(
                 # Collect error-level logs for exception context
                 if level == "ERROR":
                     error_context = {"level": level, "event": event, **log_data}
-                    error_logs.append(str(error_context))
+                    error_logs.append(error_context)
 
                 if "Extractor failed" in event or "Loader failed" in event or "Mappers failed" in event:
                     context.add_asset_metadata(
@@ -291,7 +291,10 @@ def _run_meltano_pipeline(
             }
 
             if error_logs:
-                metadata["last_5_error_logs"] = "\n".join(error_logs[-5:])
+                # Store structured error logs as JSON for better parsing
+                import json
+
+                metadata["last_5_error_logs_json"] = json.dumps(error_logs[-5:], indent=2)
 
             raise dg.Failure(
                 description=f"Meltano job failed with exit code {exit_code}",
