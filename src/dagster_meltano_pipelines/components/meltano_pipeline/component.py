@@ -14,7 +14,6 @@ import orjson
 from dagster.components.resolved.model import Resolver
 from pydantic import BaseModel, Field
 
-from dagster_meltano_pipelines.errors import DagsterMeltanoPipelineError
 from dagster_meltano_pipelines.project import MeltanoProject
 from dagster_meltano_pipelines.resources import Extractor, Loader, MeltanoConfig
 
@@ -286,10 +285,17 @@ def _run_meltano_pipeline(
         exit_code = process.wait()
 
         if exit_code != 0:
-            raise DagsterMeltanoPipelineError(
-                "Meltano job failed",
-                exit_code=exit_code,
-                error_logs=error_logs,
+            metadata: t.Dict[str, t.Any] = {
+                "exit_code": exit_code,
+                "error_log_count": len(error_logs),
+            }
+
+            if error_logs:
+                metadata["last_5_error_logs"] = "\n".join(error_logs[-5:])
+
+            raise dg.Failure(
+                description=f"Meltano job failed with exit code {exit_code}",
+                metadata=metadata,
             )
 
 
