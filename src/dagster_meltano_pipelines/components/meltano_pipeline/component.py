@@ -14,7 +14,6 @@ import orjson
 from dagster.components.resolved.model import Resolver
 from pydantic import BaseModel, Field
 
-from dagster_meltano_pipelines.errors import DagsterMeltanoPipelineError
 from dagster_meltano_pipelines.project import MeltanoProject
 from dagster_meltano_pipelines.resources import Extractor, Loader, MeltanoConfig
 
@@ -241,8 +240,9 @@ def _run_meltano_pipeline(
         bufsize=1,
     )
 
-    # Collect error logs for better exception context
-    error_logs = []
+    # Collect error logs for better exception context (mixed strings and dicts)
+    error_logs: t.List[t.Union[str, t.Dict[str, t.Any]]] = []
+    duration_seconds: t.Optional[float] = None
 
     # Stream logs in real time
     if process.stdout is not None:
@@ -262,23 +262,15 @@ def _run_meltano_pipeline(
                 context.log.log(level, event)
 
                 # Collect error-level logs for exception context
-                if level == "ERROR":
+                if level == "error":
                     error_context = {"level": level, "event": event, **log_data}
-                    error_logs.append(str(error_context))
-
-                if "Extractor failed" in event or "Loader failed" in event or "Mappers failed" in event:
-                    context.add_asset_metadata(
-                        {
-                            "code": log_data.pop("code", None),
-                            "message": log_data.pop("message", None),
-                            "exception": log_data.pop("exception", []),
-                        }
-                    )
+                    error_logs.append(error_context)
 
                 if "Run completed" in event:
+                    duration_seconds = log_data.pop("duration_seconds", None)
                     context.add_asset_metadata(
                         {
-                            "duration_seconds": log_data.pop("duration_seconds", None),
+                            "duration_seconds": duration_seconds,
                         }
                     )
 
@@ -286,10 +278,18 @@ def _run_meltano_pipeline(
         exit_code = process.wait()
 
         if exit_code != 0:
-            raise DagsterMeltanoPipelineError(
-                "Meltano job failed",
-                exit_code=exit_code,
-                error_logs=error_logs,
+            final_message = error_logs[-1]["event"] if error_logs and isinstance(error_logs[-1], dict) else None
+            metadata: t.Dict[str, t.Any] = {
+                "exit_code": exit_code,
+                "message": final_message,
+                "error_logs": error_logs,
+            }
+            if duration_seconds is not None:
+                metadata["duration_seconds"] = duration_seconds
+
+            raise dg.Failure(
+                description=f"Meltano job failed with exit code {exit_code}",
+                metadata=metadata,
             )
 
 
