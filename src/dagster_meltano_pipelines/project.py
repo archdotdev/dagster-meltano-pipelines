@@ -17,6 +17,8 @@ def _read_meltano_yml_plugin_defs(
             if plugin.get("namespace"):
                 # This is a custom plugin, the definition is inlined
                 plugin_defs[plugin_type, plugin["name"]] = plugin
+            elif "inherit_from" in plugin:
+                continue
             else:
                 # Read from $project_dir/plugins/$plugin_type/$plugin_name--$plugin_variant.lock
                 plugin_lock_file = project_dir.joinpath(
