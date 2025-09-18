@@ -14,8 +14,6 @@ def _read_meltano_yml_plugin_defs(
     plugin_defs: dict[tuple[str, str], dict[str, t.Any]] = {}
     for plugin_type, plugins in meltano_yml.get("plugins", {}).items():
         for plugin in plugins:
-            if "inherit_from" in plugin:
-                continue
             if plugin.get("namespace"):
                 # This is a custom plugin, the definition is inlined
                 plugin_defs[plugin_type, plugin["name"]] = plugin
