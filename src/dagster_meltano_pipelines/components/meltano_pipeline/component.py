@@ -37,6 +37,11 @@ class MeltanoProjectArgs(dg.Resolvable):
     project_dir: str
 
 
+class RunResult(t.NamedTuple):
+    error_logs: t.List[t.Union[str, t.Dict[str, t.Any]]]
+    duration_seconds: t.Optional[float]
+
+
 def resolve_meltano_project(
     context: dg.ResolutionContext,
     model: BaseModel,
@@ -208,6 +213,60 @@ def build_pipeline_env(
     return env
 
 
+def _format_metric_info(metric_info: t.Dict[str, t.Any]) -> str:
+    """Format metric info for logging."""
+    kv = [f"{k}={v!r}" for k, v in metric_info.items()]
+    return f"METRIC: {' '.join(kv)}"
+
+
+def process_meltano_stdout(
+    context: dg.AssetExecutionContext,
+    lines: t.Iterable[bytes],
+) -> RunResult:
+    """Process Meltano stdout."""
+    # Collect error logs for better exception context (mixed strings and dicts)
+    error_logs: t.List[t.Union[str, t.Dict[str, t.Any]]] = []
+    duration_seconds: t.Optional[float] = None
+
+    for line in lines:
+        try:
+            log_data = orjson.loads(line)
+        except orjson.JSONDecodeError:
+            # If it's not valid JSON, log as raw text
+            decoded_line = line.decode("utf-8").strip()
+            context.log.info(decoded_line)
+            # Collect non-JSON error output as well
+            if decoded_line.lower().find("error") != -1:
+                error_logs.append(decoded_line)
+        else:
+            level = log_data.pop("level")
+            event = log_data.pop("event")
+
+            if event.startswith("METRIC"):
+                if metric_info := log_data.pop("metric_info", None):
+                    context.log.debug(_format_metric_info(metric_info))
+                else:
+                    # Fallback to logging the raw metric event, e.g. 'METRIC: {"metric_type": ...}'
+                    context.log.debug(event)
+            else:
+                context.log.log(level, event)
+
+            # Collect error-level logs for exception context
+            if level == "error":
+                error_context = {"level": level, "event": event, **log_data}
+                error_logs.append(error_context)
+
+            if "Run completed" in event:
+                duration_seconds = log_data.pop("duration_seconds", None)
+                context.add_asset_metadata(
+                    {
+                        "duration_seconds": duration_seconds,
+                    }
+                )
+
+    return RunResult(error_logs, duration_seconds)
+
+
 def _run_meltano_pipeline(
     context: dg.AssetExecutionContext,
     pipeline: "MeltanoPipeline",
@@ -240,39 +299,10 @@ def _run_meltano_pipeline(
         bufsize=1,
     )
 
-    # Collect error logs for better exception context (mixed strings and dicts)
-    error_logs: t.List[t.Union[str, t.Dict[str, t.Any]]] = []
-    duration_seconds: t.Optional[float] = None
-
     # Stream logs in real time
     if process.stdout is not None:
-        for line in iter(process.stdout.readline, b""):
-            try:
-                log_data = orjson.loads(line)
-            except orjson.JSONDecodeError:
-                # If it's not valid JSON, log as raw text
-                decoded_line = line.decode("utf-8").strip()
-                context.log.info(decoded_line)
-                # Collect non-JSON error output as well
-                if decoded_line.lower().find("error") != -1:
-                    error_logs.append(decoded_line)
-            else:
-                level = log_data.pop("level")
-                event = log_data.pop("event")
-                context.log.log(level, event)
-
-                # Collect error-level logs for exception context
-                if level == "error":
-                    error_context = {"level": level, "event": event, **log_data}
-                    error_logs.append(error_context)
-
-                if "Run completed" in event:
-                    duration_seconds = log_data.pop("duration_seconds", None)
-                    context.add_asset_metadata(
-                        {
-                            "duration_seconds": duration_seconds,
-                        }
-                    )
+        # Process logs
+        error_logs, duration_seconds = process_meltano_stdout(context, process.stdout)
 
         # Wait for process to complete
         exit_code = process.wait()
