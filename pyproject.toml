@@ -38,6 +38,7 @@ test = [
 ]
 typing = [
     "mypy>=1.16.0",
+    "ty>=0.0.1a23",
     "types-pyyaml>=6.0.12.20250516",
 ]
 
@@ -85,7 +86,10 @@ commands = [ [ "ruff", "check", "--fix" ], [ "ruff", "format" ] ]
 
 [tool.tox.env.type]
 dependency_groups = [ "test", "typing" ]
-commands = [ [ "mypy", "--strict", { replace = "posargs", default = [ "src/dagster_meltano_pipelines", "tests" ], extend = true } ] ]
+commands = [
+    [ "mypy", "--strict", { replace = "posargs", default = [ "src/dagster_meltano_pipelines", "tests" ], extend = true } ],
+    [ "ty", "check", { replace = "posargs", default = [ "src/dagster_meltano_pipelines", "tests" ], extend = true } ],
+]
 
 [tool.uv.sources]
 meltano = { git = "https://github.com/meltano/meltano.git" }
