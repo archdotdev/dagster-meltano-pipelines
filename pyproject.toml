@@ -1,6 +1,6 @@
 [project]
 name = "dagster-meltano-pipelines"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Dagster Components for Meltano"
 readme = "README.md"
 authors = [
@@ -43,8 +43,12 @@ typing = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+fallback-version = "0.0.0"
+source = "vcs"
 
 [tool.ruff]
 line-length = 120
