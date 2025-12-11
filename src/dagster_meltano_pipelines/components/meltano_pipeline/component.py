@@ -64,7 +64,7 @@ ResolvedMeltanoProject: TypeAlias = t.Annotated[
     MeltanoProject,
     Resolver(
         resolve_meltano_project,
-        model_field_type=t.Union[str, MeltanoProjectArgs.model()],
+        model_field_type=t.Union[str, MeltanoProjectArgs.model()],  # ty: ignore[invalid-type-form]
     ),
 ]
 
