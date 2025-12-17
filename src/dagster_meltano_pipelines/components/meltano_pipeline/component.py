@@ -8,6 +8,7 @@ import typing as t
 from contextlib import contextmanager
 from dataclasses import dataclass
 from importlib.metadata import version
+from typing import TypeAlias
 
 import dagster as dg
 import orjson
@@ -18,11 +19,6 @@ from dagster_meltano_pipelines.project import MeltanoProject
 from dagster_meltano_pipelines.resources import Extractor, Loader, MeltanoConfig
 
 from .scaffolder import MeltanoProjectScaffolder
-
-if sys.version_info >= (3, 10):
-    from typing import TypeAlias
-else:
-    from typing_extensions import TypeAlias
 
 if sys.version_info >= (3, 12):
     from typing import override
@@ -38,8 +34,9 @@ class MeltanoProjectArgs(dg.Resolvable):
 
 
 class RunResult(t.NamedTuple):
-    error_logs: t.List[t.Union[str, t.Dict[str, t.Any]]]
-    duration_seconds: t.Optional[float]
+    error_logs: list[str | dict[str, t.Any]]
+    warning_logs: list[str | dict[str, t.Any]]
+    duration_seconds: float | None
 
 
 def resolve_meltano_project(
@@ -50,7 +47,7 @@ def resolve_meltano_project(
         return MeltanoProject(
             context.resolve_source_relative_path(
                 context.resolve_value(model, as_type=str),
-            )
+            ),
         )
 
     args = MeltanoProjectArgs.resolve_from_model(context, model)
@@ -69,7 +66,7 @@ ResolvedMeltanoProject: TypeAlias = t.Annotated[
 ]
 
 
-def get_all_ssh_keys(pipeline: "MeltanoPipeline") -> t.List[str]:
+def get_all_ssh_keys(pipeline: "MeltanoPipeline") -> list[str]:
     """Collect SSH keys from all sources with deprecation warning.
 
     Args:
@@ -104,8 +101,8 @@ def get_all_ssh_keys(pipeline: "MeltanoPipeline") -> t.List[str]:
 @contextmanager
 def setup_ssh_config(
     context: dg.AssetExecutionContext,
-    ssh_private_keys: t.List[str],
-) -> t.Generator[t.Optional[str], None, None]:
+    ssh_private_keys: list[str],
+) -> t.Generator[str | None, None, None]:
     """Create temporary SSH config and key files for Git authentication.
 
     Yields:
@@ -131,7 +128,7 @@ def setup_ssh_config(
                     key_content += "\n"
 
                 key_file = stack.enter_context(
-                    tempfile.NamedTemporaryFile(mode="w", suffix=f"_id_rsa_{i}", dir=temp_dir, delete=False)
+                    tempfile.NamedTemporaryFile(mode="w", suffix=f"_id_rsa_{i}", dir=temp_dir, delete=False),
                 )
                 key_file.write(key_content)
                 key_file.flush()
@@ -149,7 +146,7 @@ def setup_ssh_config(
                         "    StrictHostKeyChecking no",
                         "    UserKnownHostsFile /dev/null",
                         "",
-                    ]
+                    ],
                 )
 
             ssh_config_file = tempfile.NamedTemporaryFile(mode="w", suffix="_ssh_config", dir=temp_dir, delete=False)
@@ -162,10 +159,10 @@ def setup_ssh_config(
 def build_pipeline_env(
     pipeline: "MeltanoPipeline",
     project: MeltanoProject,
-    ssh_config_path: t.Optional[str] = None,
-    base_env: t.Optional[t.Dict[str, str]] = None,
+    ssh_config_path: str | None = None,
+    base_env: dict[str, str] | None = None,
     flags: t.Optional["MeltanoRunConfig"] = None,
-) -> t.Dict[str, str]:
+) -> dict[str, str]:
     """Build environment variables for the Meltano pipeline.
 
     Args:
@@ -177,10 +174,7 @@ def build_pipeline_env(
     Returns:
         Dictionary of environment variables for the pipeline
     """
-    if base_env is None:
-        base_env = dict(os.environ)
-    else:
-        base_env = dict(base_env)
+    base_env = dict(os.environ) if base_env is None else dict(base_env)
 
     # Prevent MELTANO_PROJECT_ROOT from interfering with configured project location
     base_env.pop("MELTANO_PROJECT_ROOT", None)
@@ -213,7 +207,7 @@ def build_pipeline_env(
     return env
 
 
-def _format_metric_info(metric_info: t.Dict[str, t.Any]) -> str:
+def _format_metric_info(metric_info: dict[str, t.Any]) -> str:
     """Format metric info for logging."""
     kv = [f"{k}={v!r}" for k, v in metric_info.items()]
     return f"METRIC: {' '.join(kv)}"
@@ -225,8 +219,10 @@ def process_meltano_stdout(
 ) -> RunResult:
     """Process Meltano stdout."""
     # Collect error logs for better exception context (mixed strings and dicts)
-    error_logs: t.List[t.Union[str, t.Dict[str, t.Any]]] = []
-    duration_seconds: t.Optional[float] = None
+    error_logs: list[str | dict[str, t.Any]] = []
+    # Collect warning logs for asset metadata
+    warning_logs: list[str | dict[str, t.Any]] = []
+    duration_seconds: float | None = None
 
     for line in lines:
         try:
@@ -256,22 +252,27 @@ def process_meltano_stdout(
                 error_context = {"level": level, "event": event, **log_data}
                 error_logs.append(error_context)
 
+            # Collect warning-level logs for asset metadata
+            if level == "warning":
+                warning_context = {"level": level, "event": event, **log_data}
+                warning_logs.append(warning_context)
+
             if "Run completed" in event:
                 duration_seconds = log_data.pop("duration_seconds", None)
                 context.add_asset_metadata(
                     {
                         "duration_seconds": duration_seconds,
-                    }
+                    },
                 )
 
-    return RunResult(error_logs, duration_seconds)
+    return RunResult(error_logs, warning_logs, duration_seconds)
 
 
 def _run_meltano_pipeline(
     context: dg.AssetExecutionContext,
     pipeline: "MeltanoPipeline",
     project: MeltanoProject,
-    env: t.Dict[str, str],
+    env: dict[str, str],
     *,
     flags: "MeltanoRunConfig",
 ) -> None:
@@ -282,7 +283,7 @@ def _run_meltano_pipeline(
         {
             "meltano_version": version("meltano"),
             "component_version": version("dagster-meltano-pipelines"),
-        }
+        },
     )
 
     process = subprocess.Popen(
@@ -302,17 +303,18 @@ def _run_meltano_pipeline(
     # Stream logs in real time
     if process.stdout is not None:
         # Process logs
-        error_logs, duration_seconds = process_meltano_stdout(context, process.stdout)
+        error_logs, warning_logs, duration_seconds = process_meltano_stdout(context, process.stdout)
 
         # Wait for process to complete
         exit_code = process.wait()
 
         if exit_code != 0:
             final_message = error_logs[-1]["event"] if error_logs and isinstance(error_logs[-1], dict) else None
-            metadata: t.Dict[str, t.Any] = {
+            metadata: dict[str, t.Any] = {
                 "exit_code": exit_code,
                 "message": final_message,
                 "error_logs": error_logs,
+                "warning_logs": warning_logs,
             }
             if duration_seconds is not None:
                 metadata["duration_seconds"] = duration_seconds
@@ -321,6 +323,9 @@ def _run_meltano_pipeline(
                 description=f"Meltano job failed with exit code {exit_code}",
                 metadata=metadata,
             )
+        # Add warning logs to asset metadata for successful runs
+        if warning_logs:
+            context.add_asset_metadata({"warning_logs": warning_logs})
 
 
 def pipeline_to_dagster_asset(
@@ -332,7 +337,7 @@ def pipeline_to_dagster_asset(
     extractor_definition = project.plugins["extractors", pipeline.extractor.name]
     loader_definition = project.plugins["loaders", pipeline.loader.name]
     props = props or DagsterAssetProps()
-    tags: t.Dict[str, str] = {
+    tags: dict[str, str] = {
         "extractor": pipeline.extractor.name,
         "loader": pipeline.loader.name,
     }
@@ -384,12 +389,12 @@ class MeltanoRunConfig(dg.Config):
     state_strategy: t.Literal["auto", "merge", "overwrite"] = "auto"
 
     #: Log level for Meltano CLI
-    log_level: t.Optional[str] = None
+    log_level: str | None = None
 
     #: Stream selection filter
-    select_filter: t.Optional[t.List[str]] = None
+    select_filter: list[str] | None = None
 
-    def get_command(self, *, run_id: str, state_suffix: t.Optional[str] = None) -> t.List[str]:
+    def get_command(self, *, run_id: str, state_suffix: str | None = None) -> list[str]:
         """Get the command to run Meltano with the flags.
 
         Args:
@@ -408,7 +413,7 @@ class MeltanoRunConfig(dg.Config):
             [
                 "run",
                 f"--run-id={run_id}",
-            ]
+            ],
         )
 
         if state_suffix:
@@ -432,30 +437,30 @@ class MeltanoPipeline(BaseModel):
     id: str
     extractor: Extractor
     loader: Loader
-    description: t.Optional[str] = None
-    tags: t.Optional[t.Dict[str, str]] = None
-    meltano_config: t.Optional[MeltanoConfig] = Field(None, description="Meltano configuration")
-    env: t.Dict[str, str] = Field(
+    description: str | None = None
+    tags: dict[str, str] | None = None
+    meltano_config: MeltanoConfig | None = Field(None, description="Meltano configuration")
+    env: dict[str, str] = Field(
         default_factory=dict,
         description="Environment variables to pass to the Meltano pipeline",
     )
-    git_ssh_private_keys: t.List[str] = Field(
+    git_ssh_private_keys: list[str] = Field(
         default_factory=list,
         description="(DEPRECATED) List of SSH private key contents for Git authentication. "
         "Use git_ssh_private_key on individual extractor and loader plugins instead.",
     )
 
-    state_suffix: t.Optional[str] = Field(None, description="Suffix to add to the state backend environment variables")
+    state_suffix: str | None = Field(None, description="Suffix to add to the state backend environment variables")
 
 
 class DagsterAssetProps(BaseModel):
     """Properties that apply to all assets generated by the component."""
 
-    key_prefix: t.Optional[t.Union[str, t.Sequence[str]]] = Field(
+    key_prefix: str | t.Sequence[str] | None = Field(
         default=None,
         description="Key prefix to use for the assets generated by the component",
     )
-    tags: t.Optional[t.Dict[str, str]] = Field(
+    tags: dict[str, str] | None = Field(
         default=None,
         description="Tags to apply to the assets generated by the component",
     )
@@ -470,8 +475,8 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
     """
 
     project: ResolvedMeltanoProject
-    pipelines: t.List[MeltanoPipeline]
-    asset_props: t.Optional[DagsterAssetProps] = None
+    pipelines: list[MeltanoPipeline]
+    asset_props: DagsterAssetProps | None = None
 
     @override
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
@@ -490,7 +495,7 @@ class MeltanoPipelineComponent(dg.Component, dg.Resolvable):
                     pipeline,
                     project=self.project,
                     props=self.asset_props,
-                )
+                ),
             )
 
         return dg.Definitions(assets=assets)

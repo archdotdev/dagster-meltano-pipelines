@@ -6,6 +6,6 @@ from .component import (
 
 __all__ = [
     "DagsterAssetProps",
-    "MeltanoPipelineComponent",
     "MeltanoPipeline",
+    "MeltanoPipelineComponent",
 ]

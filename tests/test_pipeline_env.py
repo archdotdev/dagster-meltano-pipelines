@@ -81,7 +81,9 @@ def simple_pipeline(simple_extractor: Extractor, simple_loader: Loader) -> Melta
 
 @pytest.fixture
 def pipeline_with_config(
-    simple_extractor: Extractor, simple_loader: Loader, meltano_config: MeltanoConfig
+    simple_extractor: Extractor,
+    simple_loader: Loader,
+    meltano_config: MeltanoConfig,
 ) -> MeltanoPipeline:
     """Create a pipeline with Meltano config for testing."""
     return MeltanoPipeline(
@@ -118,7 +120,8 @@ def test_build_pipeline_env_basic(simple_pipeline: MeltanoPipeline, mock_project
 
 
 def test_build_pipeline_env_removes_meltano_project_root(
-    simple_pipeline: MeltanoPipeline, mock_project: MeltanoProject
+    simple_pipeline: MeltanoPipeline,
+    mock_project: MeltanoProject,
 ) -> None:
     """Test that MELTANO_PROJECT_ROOT is removed from environment."""
     base_env = {
@@ -136,7 +139,8 @@ def test_build_pipeline_env_removes_meltano_project_root(
 
 
 def test_build_pipeline_env_with_meltano_config(
-    pipeline_with_config: MeltanoPipeline, mock_project: MeltanoProject
+    pipeline_with_config: MeltanoPipeline,
+    mock_project: MeltanoProject,
 ) -> None:
     """Test environment building with Meltano config."""
     base_env = {"BASE_VAR": "base_value"}
@@ -174,7 +178,9 @@ def test_build_pipeline_env_with_ssh_config(simple_pipeline: MeltanoPipeline, mo
 
 
 def test_build_pipeline_env_defaults_to_os_environ(
-    simple_pipeline: MeltanoPipeline, mock_project: MeltanoProject, monkeypatch: pytest.MonkeyPatch
+    simple_pipeline: MeltanoPipeline,
+    mock_project: MeltanoProject,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Test that base_env defaults to os.environ."""
     # Set an environment variable
@@ -191,7 +197,8 @@ def test_build_pipeline_env_defaults_to_os_environ(
 
 
 def test_build_pipeline_env_variable_precedence(
-    pipeline_with_config: MeltanoPipeline, mock_project: MeltanoProject
+    pipeline_with_config: MeltanoPipeline,
+    mock_project: MeltanoProject,
 ) -> None:
     """Test that variables are applied in the correct precedence order."""
     # Create a variable that appears in multiple sources
@@ -266,7 +273,8 @@ def test_build_pipeline_env_empty_base_env(simple_pipeline: MeltanoPipeline, moc
 
 
 def test_build_pipeline_env_preserves_base_env_copy(
-    simple_pipeline: MeltanoPipeline, mock_project: MeltanoProject
+    simple_pipeline: MeltanoPipeline,
+    mock_project: MeltanoProject,
 ) -> None:
     """Test that the original base_env dict is not modified."""
     base_env: dict[str, str] = {"ORIGINAL_VAR": "original_value", "MELTANO_PROJECT_ROOT": "remove_me"}
@@ -283,7 +291,8 @@ def test_build_pipeline_env_preserves_base_env_copy(
 
 
 def test_build_pipeline_env_respects_existing_log_format(
-    simple_pipeline: MeltanoPipeline, mock_project: MeltanoProject
+    simple_pipeline: MeltanoPipeline,
+    mock_project: MeltanoProject,
 ) -> None:
     """Test that existing MELTANO_CLI_LOG_FORMAT is not overridden."""
     base_env = {"MELTANO_CLI_LOG_FORMAT": "text"}
@@ -314,7 +323,8 @@ def test_build_pipeline_env_with_select_filter(simple_pipeline: MeltanoPipeline,
 
 
 def test_build_pipeline_env_without_select_filter(
-    simple_pipeline: MeltanoPipeline, mock_project: MeltanoProject
+    simple_pipeline: MeltanoPipeline,
+    mock_project: MeltanoProject,
 ) -> None:
     """Test environment building without select_filter in runtime config."""
     flags = MeltanoRunConfig()
@@ -332,7 +342,8 @@ def test_build_pipeline_env_without_select_filter(
 
 
 def test_build_pipeline_env_with_none_select_filter(
-    simple_pipeline: MeltanoPipeline, mock_project: MeltanoProject
+    simple_pipeline: MeltanoPipeline,
+    mock_project: MeltanoProject,
 ) -> None:
     """Test environment building with select_filter explicitly set to None."""
     flags = MeltanoRunConfig(select_filter=None)
@@ -350,7 +361,8 @@ def test_build_pipeline_env_with_none_select_filter(
 
 
 def test_build_pipeline_env_with_empty_select_filter(
-    simple_pipeline: MeltanoPipeline, mock_project: MeltanoProject
+    simple_pipeline: MeltanoPipeline,
+    mock_project: MeltanoProject,
 ) -> None:
     """Test environment building with empty select_filter list."""
     select_filter: list[str] = []

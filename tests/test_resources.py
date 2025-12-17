@@ -35,7 +35,7 @@ def extractor() -> Extractor:
                             "baz": dg.EnvVar("BAZ"),
                             "qux": "qux",
                         },
-                    }
+                    },
                 ],
             },
             from_dagster=dg.EnvVar("FROM_DAGSTER"),
