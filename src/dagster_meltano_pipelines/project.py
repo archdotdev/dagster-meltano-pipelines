@@ -9,7 +9,8 @@ from dagster_meltano_pipelines.errors import DagsterMeltanoProjectNotFoundError
 
 
 def _read_meltano_yml_plugin_defs(
-    meltano_yml: dict[str, t.Any], project_dir: Path
+    meltano_yml: dict[str, t.Any],
+    project_dir: Path,
 ) -> dict[tuple[str, str], dict[str, t.Any]]:
     plugin_defs: dict[tuple[str, str], dict[str, t.Any]] = {}
     for plugin_type, plugins in meltano_yml.get("plugins", {}).items():
@@ -20,7 +21,9 @@ def _read_meltano_yml_plugin_defs(
             else:
                 # Read from $project_dir/plugins/$plugin_type/$plugin_name--$plugin_variant.lock
                 plugin_lock_file = project_dir.joinpath(
-                    "plugins", plugin_type, f"{plugin['name']}--{plugin['variant']}.lock"
+                    "plugins",
+                    plugin_type,
+                    f"{plugin['name']}--{plugin['variant']}.lock",
                 )
                 with open(plugin_lock_file) as file:
                     plugin_def = json.load(file)
@@ -38,7 +41,7 @@ class MeltanoProject(IHaveNew):
 
     def __new__(
         cls,
-        project_dir: t.Union[Path, str],
+        project_dir: Path | str,
     ) -> "MeltanoProject":
         project_dir = Path(project_dir)
         if not project_dir.exists():

@@ -1,7 +1,8 @@
 import abc
 import collections.abc
 import json
-from typing import Any, Dict, List, Literal, Optional, Sequence
+from collections.abc import Sequence
+from typing import Any, Literal
 
 import dagster as dg
 from pydantic import Field
@@ -10,7 +11,7 @@ from pydantic import Field
 class MeltanoPluginConfig(dg.PermissiveConfig):
     """Plugin configuration."""
 
-    def model_dump(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+    def model_dump(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         kwargs.setdefault("by_alias", True)
         return super().model_dump(*args, **kwargs)
 
@@ -19,35 +20,35 @@ class ExtractorConfig(MeltanoPluginConfig):
     """Extractor configuration."""
 
     # https://github.com/meltano/meltano/blob/0dad7d51a36862e3df7a9f5cf19425540577e5c9/src/meltano/core/plugin/singer/tap.py#L172
-    catalog: Optional[str] = Field(
+    catalog: str | None = Field(
         description="Stream catalog file",
         alias="_catalog",
     )
-    state: Optional[str] = Field(
+    state: str | None = Field(
         description="Stream state file",
         alias="_state",
     )
-    load_schema: Optional[str] = Field(
+    load_schema: str | None = Field(
         description="Load data to this schema in the target database",
         alias="_load_schema",
     )
-    select: Optional[List[str]] = Field(
+    select: list[str] | None = Field(
         description="Stream selection",
         alias="_select",
     )
-    metadata: Optional[Dict[str, Any]] = Field(
+    metadata: dict[str, Any] | None = Field(
         description="Stream metadata",
         alias="_metadata",
     )
-    tap_schema: Optional[Dict[str, Any]] = Field(
+    tap_schema: dict[str, Any] | None = Field(
         description="Stream schema",
         alias="_schema",
     )
-    select_filter: Optional[List[str]] = Field(
+    select_filter: list[str] | None = Field(
         description="Stream selection filter",
         alias="_select_filter",
     )
-    use_cached_catalog: Optional[bool] = Field(
+    use_cached_catalog: bool | None = Field(
         description="Use cached catalog",
         alias="_use_cached_catalog",
     )
@@ -57,7 +58,7 @@ class LoaderConfig(MeltanoPluginConfig):
     """Loader configuration."""
 
     # https://github.com/meltano/meltano/blob/0dad7d51a36862e3df7a9f5cf19425540577e5c9/src/meltano/core/plugin/singer/target.py#L105
-    dialect: Optional[str] = Field(
+    dialect: str | None = Field(
         description="Target database dialect",
         alias="_dialect",
     )
@@ -67,15 +68,15 @@ class MeltanoPlugin(dg.ConfigurableResource["MeltanoPlugin"]):
     """Base class for Meltano plugins."""
 
     name: str = Field(description="The Meltano plugin name")
-    config: Optional[MeltanoPluginConfig] = Field(description="The Meltano plugin configuration")
-    git_ssh_private_key: Optional[str] = Field(
+    config: MeltanoPluginConfig | None = Field(description="The Meltano plugin configuration")
+    git_ssh_private_key: str | None = Field(
         default=None,
         description="SSH private key content for Git authentication",
     )
 
-    def as_env(self) -> Dict[str, str]:
+    def as_env(self) -> dict[str, str]:
         """Convert the plugin configuration to a dictionary of environment variables."""
-        env: Dict[str, str] = {}
+        env: dict[str, str] = {}
         if not self.config:
             return env
 
@@ -105,15 +106,15 @@ class MeltanoPlugin(dg.ConfigurableResource["MeltanoPlugin"]):
 class Extractor(MeltanoPlugin):
     """Extractor."""
 
-    config: Optional[ExtractorConfig] = Field(description="The Meltano extractor configuration")
+    config: ExtractorConfig | None = Field(description="The Meltano extractor configuration")
 
 
 class Loader(MeltanoPlugin):
     """Loader."""
 
 
-def _dict_to_env(value: collections.abc.Mapping[str, Any], *, prefix: Optional[str] = None) -> Dict[str, str]:
-    env: Dict[str, str] = {}
+def _dict_to_env(value: collections.abc.Mapping[str, Any], *, prefix: str | None = None) -> dict[str, str]:
+    env: dict[str, str] = {}
     for k, v in value.items():
         key = f"{prefix}_{k.upper()}" if prefix else k.upper()
         if isinstance(v, dg.EnvVar):
@@ -170,7 +171,7 @@ class AsEnv(dg.PermissiveConfig):
         """The environment variable prefix."""
         ...
 
-    def as_env(self) -> Dict[str, str]:
+    def as_env(self) -> dict[str, str]:
         """Convert the configuration to a dictionary of environment variables."""
         return _dict_to_env(self.model_dump(), prefix=self.env_prefix)
 
@@ -200,8 +201,8 @@ class VenvConfig(AsEnv):
 class CLIConfig(AsEnv):
     """CLI configuration."""
 
-    log_level: Optional[Literal["debug", "info", "warning", "error", "critical"]] = Field(description="Log level")
-    log_format: Optional[Literal["json", "text"]] = Field(description="Log format")
+    log_level: Literal["debug", "info", "warning", "error", "critical"] | None = Field(description="Log level")
+    log_format: Literal["json", "text"] | None = Field(description="Log format")
 
     @property
     def env_prefix(self) -> str:
@@ -212,7 +213,7 @@ class CLIConfig(AsEnv):
 class ELTConfig(AsEnv):
     """ELT configuration."""
 
-    buffer_size: Optional[int] = Field(description="Buffer size")
+    buffer_size: int | None = Field(description="Buffer size")
 
     @property
     def env_prefix(self) -> str:
@@ -223,19 +224,19 @@ class ELTConfig(AsEnv):
 class MeltanoConfig(AsEnv):
     """Plugin configuration."""
 
-    state_backend: Optional[StateBackendConfig] = Field(default=None, description="State backend")
-    venv: Optional[VenvConfig] = Field(default=None, description="Virtual Environment configuration")
-    cli: Optional[CLIConfig] = Field(default=None, description="CLI configuration")
-    elt: Optional[ELTConfig] = Field(default=None, description="ELT configuration")
+    state_backend: StateBackendConfig | None = Field(default=None, description="State backend")
+    venv: VenvConfig | None = Field(default=None, description="Virtual Environment configuration")
+    cli: CLIConfig | None = Field(default=None, description="CLI configuration")
+    elt: ELTConfig | None = Field(default=None, description="ELT configuration")
 
     @property
     def env_prefix(self) -> str:
         """The environment variable prefix."""
         return "MELTANO"
 
-    def as_env(self) -> Dict[str, str]:
+    def as_env(self) -> dict[str, str]:
         """Convert the plugin configuration to a dictionary of environment variables."""
-        env: Dict[str, str] = {}
+        env: dict[str, str] = {}
         if self.state_backend:
             for key, value in self.state_backend.as_env().items():
                 env[f"{self.env_prefix}_{key}"] = value

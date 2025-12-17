@@ -195,7 +195,8 @@ def test_get_all_ssh_keys_deprecation_warning_message(extractor_no_ssh: Extracto
 
 
 def test_get_all_ssh_keys_no_warning_when_no_deprecated_keys(
-    extractor_with_ssh: Extractor, loader_with_ssh: Loader
+    extractor_with_ssh: Extractor,
+    loader_with_ssh: Loader,
 ) -> None:
     """Test that no deprecation warning is raised when only using new plugin-level configuration."""
     pipeline = MeltanoPipeline(
@@ -219,7 +220,8 @@ def test_get_all_ssh_keys_no_warning_when_no_deprecated_keys(
 
 
 def test_get_all_ssh_keys_empty_deprecated_list_no_warning(
-    extractor_with_ssh: Extractor, loader_with_ssh: Loader
+    extractor_with_ssh: Extractor,
+    loader_with_ssh: Loader,
 ) -> None:
     """Test that no deprecation warning is raised when deprecated list is empty."""
     pipeline = MeltanoPipeline(

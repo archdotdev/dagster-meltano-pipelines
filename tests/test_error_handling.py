@@ -1,11 +1,11 @@
-from typing import Any, Dict
+from typing import Any
 
 import dagster as dg
 
 
 def test_failure_basic() -> None:
     """Test basic Failure functionality with metadata."""
-    metadata: Dict[str, Any] = {
+    metadata: dict[str, Any] = {
         "exit_code": 1,
         "error_log_count": 0,
     }
@@ -26,7 +26,7 @@ def test_failure_with_logs() -> None:
         "Authentication error",  # Raw text error
     ]
 
-    metadata: Dict[str, Any] = {
+    metadata: dict[str, Any] = {
         "exit_code": 2,
         "error_logs": error_logs[-5:],
     }

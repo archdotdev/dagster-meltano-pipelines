@@ -1,7 +1,6 @@
 import os
 import stat
 import tempfile
-import typing as t
 from unittest.mock import Mock
 
 import dagster as dg
@@ -29,7 +28,7 @@ NhAAAAAwEAAQAAAQEAzC6K3nHOeZQq8qbUQTSQQzYzQyMzQzMzMzNDM2NzM2NzMzMzMzMzMzMzMzMzMz
 
 
 @pytest.fixture
-def sample_ssh_keys() -> t.List[str]:
+def sample_ssh_keys() -> list[str]:
     """Multiple SSH private keys for testing."""
     return [
         """-----BEGIN OPENSSH PRIVATE KEY-----
@@ -59,7 +58,7 @@ def test_setup_ssh_config_single_key(mock_context: Mock, sample_ssh_key: str) ->
         assert os.path.exists(ssh_config_path)
 
         # Read and verify SSH config content
-        with open(ssh_config_path, "r") as f:
+        with open(ssh_config_path) as f:
             config_content = f.read()
 
         assert "Host *" in config_content
@@ -84,7 +83,7 @@ def test_setup_ssh_config_single_key(mock_context: Mock, sample_ssh_key: str) ->
         assert key_stat.st_mode & 0o777 == 0o600
 
         # Verify key file content (should have trailing newline added if missing)
-        with open(key_file_path, "r") as f:
+        with open(key_file_path) as f:
             key_content = f.read()
         expected_content = sample_ssh_key if sample_ssh_key.endswith("\n") else sample_ssh_key + "\n"
         assert key_content == expected_content
@@ -97,7 +96,7 @@ def test_setup_ssh_config_single_key(mock_context: Mock, sample_ssh_key: str) ->
     mock_context.log.info.assert_called_once_with("Setting up SSH configuration for Git authentication")
 
 
-def test_setup_ssh_config_multiple_keys(mock_context: Mock, sample_ssh_keys: t.List[str]) -> None:
+def test_setup_ssh_config_multiple_keys(mock_context: Mock, sample_ssh_keys: list[str]) -> None:
     """Test SSH config setup with multiple keys."""
     ssh_keys = sample_ssh_keys
 
@@ -106,7 +105,7 @@ def test_setup_ssh_config_multiple_keys(mock_context: Mock, sample_ssh_keys: t.L
         assert os.path.exists(ssh_config_path)
 
         # Read SSH config content
-        with open(ssh_config_path, "r") as f:
+        with open(ssh_config_path) as f:
             config_content = f.read()
 
         # Should have multiple Host * entries (one per key)
@@ -124,7 +123,7 @@ def test_setup_ssh_config_multiple_keys(mock_context: Mock, sample_ssh_keys: t.L
 
         # Verify each key file has correct content and permissions
         for i, expected_key in enumerate(sample_ssh_keys):
-            key_file = [f for f in key_files if f.endswith(f"_id_rsa_{i}")][0]
+            key_file = next(f for f in key_files if f.endswith(f"_id_rsa_{i}"))
             key_file_path = os.path.join(temp_dir, key_file)
 
             # Check permissions
@@ -132,7 +131,7 @@ def test_setup_ssh_config_multiple_keys(mock_context: Mock, sample_ssh_keys: t.L
             assert key_stat.st_mode & 0o777 == 0o600
 
             # Check content (should have trailing newline added if missing)
-            with open(key_file_path, "r") as f:
+            with open(key_file_path) as f:
                 key_content = f.read()
             expected_content = expected_key if expected_key.endswith("\n") else expected_key + "\n"
             assert key_content == expected_content
@@ -175,12 +174,12 @@ def test_setup_ssh_config_secret_str_handling(mock_context: Mock) -> None:
         key_file_path = os.path.join(temp_dir, key_files[0])
 
         # Verify the secret value was written to the file (should have trailing newline added)
-        with open(key_file_path, "r") as f:
+        with open(key_file_path) as f:
             key_content = f.read()
         assert key_content == "test-secret-key-content\n"
 
 
-def test_setup_ssh_config_file_naming(mock_context: Mock, sample_ssh_keys: t.List[str]) -> None:
+def test_setup_ssh_config_file_naming(mock_context: Mock, sample_ssh_keys: list[str]) -> None:
     """Test that SSH config and key files are named correctly."""
     ssh_keys = sample_ssh_keys
 
@@ -202,7 +201,7 @@ def test_setup_ssh_config_file_naming(mock_context: Mock, sample_ssh_keys: t.Lis
             assert len(expected_files) == 1
 
         # Verify the SSH config references the correct key files
-        with open(ssh_config_path, "r") as f:
+        with open(ssh_config_path) as f:
             config_content = f.read()
 
         for key_file in key_files:
@@ -232,7 +231,7 @@ def test_setup_ssh_config_literal_newline_replacement(mock_context: Mock) -> Non
         key_file_path = os.path.join(temp_dir, key_files[0])
 
         # Verify the literal \n was replaced with actual newlines
-        with open(key_file_path, "r") as f:
+        with open(key_file_path) as f:
             key_content = f.read()
         assert key_content == expected_key_content
 
