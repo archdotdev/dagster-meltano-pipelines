@@ -43,8 +43,8 @@ def resolve_meltano_project(
     context: dg.ResolutionContext,
     model: BaseModel,
 ) -> MeltanoProject:
-    if isinstance(model, str):
-        return MeltanoProject(
+    if isinstance(model, str):  # type: ignore[unreachable]
+        return MeltanoProject(  # type: ignore[unreachable]
             context.resolve_source_relative_path(
                 context.resolve_value(model, as_type=str),
             ),
@@ -297,7 +297,6 @@ def _run_meltano_pipeline(
         cwd=project.project_dir,
         env=env,
         text=False,
-        bufsize=1,
     )
 
     # Stream logs in real time
