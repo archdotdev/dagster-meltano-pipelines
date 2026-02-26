@@ -125,3 +125,14 @@ commands = [
 
 [tool.uv.sources]
 meltano = { git = "https://github.com/meltano/meltano.git" }
+
+[tool.mypy]
+enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+strict = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_unused_ignores = true
+
+[tool.ty.analysis]
+# Disable support for `type: ignore` comments
+respect-type-ignore-comments = false
