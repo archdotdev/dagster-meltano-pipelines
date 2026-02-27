@@ -178,6 +178,7 @@ def build_pipeline_env(
 
     # Prevent MELTANO_PROJECT_ROOT from interfering with configured project location
     base_env.pop("MELTANO_PROJECT_ROOT", None)
+    base_env["MELTANO_SYS_DIR_ROOT"] = f".meltano/{pipeline.id}"
 
     # Add meltano config if present
     if pipeline.meltano_config:
@@ -359,13 +360,21 @@ def pipeline_to_dagster_asset(
     def meltano_job(context: dg.AssetExecutionContext, config: MeltanoRunConfig) -> None:
         context.log.info("Running pipeline: %s", pipeline.id)
 
-        # Log warning if MELTANO_PROJECT_ROOT was removed
+        # Log warning if MELTANO_PROJECT_ROOT will be removed
         if "MELTANO_PROJECT_ROOT" in os.environ:
             context.log.warning(
                 "Removing MELTANO_PROJECT_ROOT environment variable (value: %s) to prevent "
                 "interference with configured project directory: %s",
                 os.environ["MELTANO_PROJECT_ROOT"],
                 project.project_dir,
+            )
+
+        # Log warning if MELTANO_SYS_DIR_ROOT will be overridden
+        if "MELTANO_SYS_DIR_ROOT" in os.environ:
+            context.log.warning(
+                "Overriding MELTANO_SYS_DIR_ROOT environment variable (value: %s) to allow "
+                "pipelines to run in parallel without systemdb or catalog cache conflicts",
+                os.environ["MELTANO_SYS_DIR_ROOT"],
             )
 
         with setup_ssh_config(context, get_all_ssh_keys(pipeline)) as ssh_config_path:
