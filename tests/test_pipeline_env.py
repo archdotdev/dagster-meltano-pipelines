@@ -138,6 +138,25 @@ def test_build_pipeline_env_removes_meltano_project_root(
     assert result["OTHER_VAR"] == "other_value"
 
 
+def test_build_pipeline_env_set_meltano_sys_dir_root(
+    simple_pipeline: MeltanoPipeline,
+    mock_project: MeltanoProject,
+) -> None:
+    """Test that MELTANO_SYS_DIR_ROOT is set to .meltano/<pipeline ID>."""
+    result = build_pipeline_env(simple_pipeline, mock_project)
+    assert result["MELTANO_SYS_DIR_ROOT"] == f".meltano/{simple_pipeline.id}"
+
+
+def test_build_pipeline_env_overrides_meltano_sys_dir_root(
+    simple_pipeline: MeltanoPipeline,
+    mock_project: MeltanoProject,
+) -> None:
+    """Test that MELTANO_SYS_DIR_ROOT is overridden if supplied in base_env."""
+    base_env = {"MELTANO_SYS_DIR_ROOT": "/some/other/path"}
+    result = build_pipeline_env(simple_pipeline, mock_project, base_env=base_env)
+    assert result["MELTANO_SYS_DIR_ROOT"] == f".meltano/{simple_pipeline.id}"
+
+
 def test_build_pipeline_env_with_meltano_config(
     pipeline_with_config: MeltanoPipeline,
     mock_project: MeltanoProject,
@@ -239,7 +258,7 @@ def test_build_pipeline_env_no_meltano_config(simple_pipeline: MeltanoPipeline, 
 
     # Should only contain default log format, no other Meltano config variables
     meltano_vars = {key: value for key, value in result.items() if key.startswith("MELTANO_")}
-    assert meltano_vars == {"MELTANO_CLI_LOG_FORMAT": "json"}
+    assert meltano_vars == {"MELTANO_CLI_LOG_FORMAT": "json", "MELTANO_SYS_DIR_ROOT": f".meltano/{simple_pipeline.id}"}
 
     # Should contain other variables
     assert result["BASE_VAR"] == "base_value"
@@ -267,6 +286,7 @@ def test_build_pipeline_env_empty_base_env(simple_pipeline: MeltanoPipeline, moc
         "TARGET_TEST_DATABASE",
         "CUSTOM_VAR",
         "MELTANO_CLI_LOG_FORMAT",
+        "MELTANO_SYS_DIR_ROOT",
     }
     assert set(result.keys()) == expected_keys
     assert result["MELTANO_CLI_LOG_FORMAT"] == "json"
