@@ -53,12 +53,13 @@ class MeltanoProject(IHaveNew):
 
         plugin_defs: dict[tuple[str, str], dict[str, t.Any]] = _read_meltano_yml_plugin_defs(meltano_yml, project_dir)
 
-        # Merge with `include_paths`:
+        # Merge with `include_paths` (glob expressions are supported):
         for include_path in meltano_yml.get("include_paths", []):
-            with open(project_dir.joinpath(include_path)) as file:
-                include_meltano_yml = yaml.safe_load(file)
+            for matched_path in sorted(project_dir.glob(include_path)):
+                with open(matched_path) as file:
+                    include_meltano_yml = yaml.safe_load(file)
 
-            plugin_defs.update(_read_meltano_yml_plugin_defs(include_meltano_yml, project_dir))
+                plugin_defs.update(_read_meltano_yml_plugin_defs(include_meltano_yml, project_dir))
 
         return super().__new__(
             cls,
