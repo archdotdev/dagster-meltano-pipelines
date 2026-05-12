@@ -6,7 +6,7 @@ import yaml
 from dagster_meltano_pipelines.project import MeltanoProject
 
 
-def _write_meltano_yml(path: Path, content: dict) -> None:
+def _write_meltano_yml(path: Path, content: dict[str, object]) -> None:
     with open(path, "w") as f:
         yaml.dump(content, f)
 
