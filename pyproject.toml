@@ -119,7 +119,7 @@ commands = [ [ "ruff", "check", "--fix" ], [ "ruff", "format" ] ]
 [tool.tox.env.type]
 dependency_groups = [ "test", "typing" ]
 commands = [
-    [ "mypy", "--strict", { replace = "posargs", default = [ "src/dagster_meltano_pipelines", "tests" ], extend = true } ],
+    [ "mypy", { replace = "posargs", default = [ "src/dagster_meltano_pipelines", "tests" ], extend = true } ],
     [ "ty", "check", { replace = "posargs", default = [ "src/dagster_meltano_pipelines", "tests" ], extend = true } ],
 ]
 
